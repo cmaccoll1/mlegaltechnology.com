@@ -1,3 +1,0 @@
-# Advanced PDF Splitter
-
-# ... (complete content goes here) ...
