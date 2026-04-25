@@ -31,6 +31,7 @@ jobs:
       - name: Run post builder
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          COURTLISTENER_API_KEY: ${{ secrets.COURTLISTENER_API_KEY }}
         run: python .github/scripts/build_post.py
 
       - name: Commit and push updated index.html
