@@ -33,35 +33,38 @@ TARGET_COURTS = [
     "nysd","casd","dcd","ilnd","txsd","mad","ded","njd","cand","nyed","flsd","vaed",
 ]
 
-# Free-text queries sent to the SEARCH endpoint (q parameter).
-# These use CourtListener's Elasticsearch query syntax.
-# Quoted phrases require exact matches; unquoted terms are keyword searches.
+# Single-term queries cast a wide net; the confirm/disqualify filters
+# downstream ensure we only write about civil securities cases.
+# Using broader terms avoids the problem of requiring two rare phrases
+# to co-occur in the same recently-filed opinion.
 SEARCH_QUERIES = [
-    '"10b-5" "class action"',
-    '"securities exchange act" "motion to dismiss"',
-    '"PSLRA" "scienter"',
-    '"securities act" "section 11"',
-    '"fraud on the market" "class certification"',
+    "10b-5",
+    "PSLRA",
+    "securities fraud class action",
+    "section 11 securities act",
+    "loss causation scienter",
 ]
 
-# At least one must match for the opinion to be considered
+# At least one must match for the opinion to be considered.
+# Kept deliberately broad — the disqualify list handles false positives.
 CONFIRM_PATTERNS = [
-    r"rule 10b-5",
-    r"section 10\(b\)",
-    r"§\s*10\(b\)",
-    r"15 u\.s\.c\.?\s*[§s]+\s*78j",
-    r"securities exchange act of 1934",
-    r"section 11\b",
-    r"section 12\(a\)",
-    r"15 u\.s\.c\.?\s*[§s]+\s*77[kl]",
+    r"10b-5",
+    r"10\(b\)",
+    r"78j",                                   # Exchange Act § 10(b) US Code cite
+    r"securities exchange act",
+    r"section 11",
+    r"section 12",
+    r"77[kl]",                                # Securities Act §§ 11/12 US Code cite
     r"securities act of 1933",
     r"section 20\(a\)",
     r"pslra",
-    r"private securities litigation reform act",
+    r"private securities litigation reform",
     r"fraud on the market",
     r"loss causation",
     r"scienter",
     r"material misrepresentation",
+    r"securities fraud",
+    r"class action",                          # broad fallback — disqualify list filters noise
 ]
 
 # Any match here disqualifies the opinion
@@ -77,7 +80,7 @@ DISQUALIFY_PATTERNS = [
     r"unemployment.*benefit",
 ]
 
-LOOKBACK_DAYS    = 14
+LOOKBACK_DAYS    = 30
 HTML_PATH        = "index.html"
 POSTED_LOG_PATH  = "posted_cases.json"
 
