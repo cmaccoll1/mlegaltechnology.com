@@ -1,3 +1,0 @@
-# Depo Review
-
-# ... (complete content goes here) ...
