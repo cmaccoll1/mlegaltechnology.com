@@ -45,26 +45,23 @@ SEARCH_QUERIES = [
     "loss causation scienter",
 ]
 
-# At least one must match for the opinion to be considered.
-# Kept deliberately broad — the disqualify list handles false positives.
-CONFIRM_PATTERNS = [
+# STRONG patterns — at least one of these must match.
+# These are specific to federal securities litigation and unlikely
+# to appear in unrelated cases.
+CONFIRM_PATTERNS_STRONG = [
     r"10b-5",
+    r"rule 10b-5",
     r"10\(b\)",
-    r"78j",                                   # Exchange Act § 10(b) US Code cite
-    r"securities exchange act",
-    r"section 11",
-    r"section 12",
-    r"77[kl]",                                # Securities Act §§ 11/12 US Code cite
+    r"78j",                                  # Exchange Act § 10(b) US Code cite
+    r"securities exchange act of 1934",
+    r"77[kl]",                               # Securities Act §§ 11/12 US Code cite
     r"securities act of 1933",
-    r"section 20\(a\)",
     r"pslra",
     r"private securities litigation reform",
     r"fraud on the market",
     r"loss causation",
-    r"scienter",
-    r"material misrepresentation",
-    r"securities fraud",
-    r"class action",                          # broad fallback — disqualify list filters noise
+    r"section 20\(a\).*securities",
+    r"securities.*section 20\(a\)",
 ]
 
 # Any match here disqualifies the opinion
@@ -253,20 +250,23 @@ def fetch_opinion_text(cluster_id: int) -> tuple:
 # ── Filtering and scoring ─────────────────────────────────────────────────────
 
 def is_securities_civil_case(result: dict, text: str) -> bool:
-    haystack = (
-        (result.get("caseName") or result.get("case_name") or "").lower()
-        + " " + text[:8000].lower()
+    case_name = (result.get("caseName") or result.get("case_name") or "")
+    haystack = (case_name + " " + text[:8000]).lower()
+
+    # Must match at least one STRONG federal securities law marker
+    confirmed = any(
+        re.search(p, haystack, re.IGNORECASE) for p in CONFIRM_PATTERNS_STRONG
     )
-    confirmed = any(re.search(p, haystack, re.IGNORECASE) for p in CONFIRM_PATTERNS)
     if not confirmed:
-        log(f"  Filtered (no civil securities markers): "
-            f"{(result.get('caseName') or '')[:60]}")
+        log(f"  Filtered (no federal securities markers): {case_name[:60]}")
         return False
+
+    # Must not match any disqualifying pattern
     for p in DISQUALIFY_PATTERNS:
         if re.search(p, haystack, re.IGNORECASE):
-            log(f"  Filtered (disqualified '{p}'): "
-                f"{(result.get('caseName') or '')[:60]}")
+            log(f"  Filtered (disqualified '{p}'): {case_name[:60]}")
             return False
+
     return True
 
 
@@ -342,6 +342,8 @@ def build_post_with_claude(result: dict, opinion_text: str) -> dict | None:
         f"[Full text unavailable. Case: {case_name}, Court: {court}, Filed: {date_filed}]"
     )
 
+    case_url = f"https://www.courtlistener.com{result.get('absolute_url', '')}"
+
     prompt = textwrap.dedent(f"""
         You are a securities litigation attorney writing a blog post for a professional
         audience of litigators. Your writing is clear, precise, and analytically rigorous.
@@ -354,22 +356,21 @@ def build_post_with_claude(result: dict, opinion_text: str) -> dict | None:
         Court:         {court.upper()}
         Date Filed:    {date_filed}
         Docket Number: {docket_num}
+        Case URL:      {case_url}
 
         OPINION TEXT (may be truncated):
         ---
         {truncated}
         ---
 
-        Cover these four sections (800-1000 words total):
+        Cover these three sections (400-500 words total):
 
-        1. Background - Parties, alleged conduct, stage of litigation
-        2. The Court's Holding - What was decided and on what grounds;
-           which claims survived or were dismissed
-        3. Legal Analysis - Specific standards applied (e.g. Tellabs scienter,
-           Dura loss causation, Basic fraud-on-the-market, PSLRA pleading,
-           Securities Act section 11 strict liability). Be technical.
-        4. Implications - Effect on pleading standards, circuit splits,
-           takeaways for plaintiffs' and defense counsel
+        1. Background - Parties, alleged conduct, and stage of litigation (2-3 sentences)
+        2. The Court's Holding - What was decided and on what grounds (2-3 sentences)
+        3. Why It Matters - Key legal implications for practitioners, in plain terms (2-3 sentences)
+
+        End the post with this exact HTML, substituting the real URL:
+        <p class="case-link">Read the full opinion: <a href="{case_url}" target="_blank" rel="noopener">{case_name}</a></p>
 
         Use <h3> tags for headers. Use <p> tags for paragraphs.
         No bullet points. No title inside the body.
@@ -380,14 +381,14 @@ def build_post_with_claude(result: dict, opinion_text: str) -> dict | None:
           "court_display": "Short label e.g. S.D.N.Y., 9th Cir., D. Del.",
           "date_display": "Month DD, YYYY",
           "summary": "Exactly two sentences: holding and why practitioners should care.",
-          "body_html": "<h3>Background</h3><p>...</p>..."
+          "body_html": "<h3>Background</h3><p>...</p><h3>The Court's Holding</h3><p>...</p><h3>Why It Matters</h3><p>...</p><p class=\"case-link\">Read the full opinion: <a href=\"{case_url}\" target=\"_blank\" rel=\"noopener\">{case_name}</a></p>"
         }}
     """).strip()
 
     try:
         message = client.messages.create(
             model="claude-sonnet-4-6",
-            max_tokens=2500,
+            max_tokens=2048,
             messages=[{"role": "user", "content": prompt}],
         )
         raw = message.content[0].text.strip()
