@@ -792,12 +792,24 @@
         <!-- LIST VIEW -->
         <div class="blog-list-view" id="blog-list-view">
           <div class="blog-list" id="blog-list">
+                        <article class="blog-card" data-post="0">
+              <div class="blog-card-inner">
+                <div>
+                  <div class="blog-card-meta">
+                    <span class="blog-date">April 6, 2026</span>
+                    <span class="blog-badge">Colo. Sup. Ct.</span>
+                  </div>
+                  <h3>Colorado Supreme Court: Copying Allegations from Related Complaints Does Not Automatically Violate Rule 11</h3>
+                  <p>The Colorado Supreme Court held that an attorney's use of allegations drawn from related lawsuits, including confidential witness statements, does not per se violate C.R.C.P. 11(a)'s reasonable inquiry requirement, but must be evaluated in context based on the totality of counsel's investigative efforts. Practitioners filing securities class actions in Colorado state court can draw on parallel federal and state litigation as part of a broader pre-filing investigation, provided they plead those allegations as facts on information and belief and supplement them with independent research.</p>
+                </div>
+                <div class="blog-arrow">&#8594;</div>
+              </div>
+            </article>
+            <!-- NEXT_CARD_HERE -->
+
 
             <!-- ═══ COMING SOON ═══ -->
-            <div class="blog-coming-soon">
-              <div class="coming-soon-inner">
-                <div class="coming-soon-icon">⚖</div>
-                <h3>Posts coming soon.</h3>
+<h3>Posts coming soon.</h3>
                 <p>This section will be updated regularly with summaries of notable recent opinions in securities litigation — what the court decided, how it got there, and what it means for practitioners.</p>
               </div>
             </div>
@@ -871,6 +883,14 @@
     // The automation script will prepend new entries to this array.
     // Each entry: { date, court, title, summary, body }
     const BLOG_POSTS = [
+            {
+        date: "April 6, 2026",
+        court: "Colo. Sup. Ct.",
+        title: "Colorado Supreme Court: Copying Allegations from Related Complaints Does Not Automatically Violate Rule 11",
+        summary: "The Colorado Supreme Court held that an attorney's use of allegations drawn from related lawsuits, including confidential witness statements, does not per se violate C.R.C.P. 11(a)'s reasonable inquiry requirement, but must be evaluated in context based on the totality of counsel's investigative efforts. Practitioners filing securities class actions in Colorado state court can draw on parallel federal and state litigation as part of a broader pre-filing investigation, provided they plead those allegations as facts on information and belief and supplement them with independent research.",
+        body: `<h3>Background</h3><p>Plaintiff Dean Houser filed a securities class action in Boulder County District Court against CenturyLink, Inc. and numerous current and former officers and directors, alleging that Offering Documents issued in connection with CenturyLink's merger with Level 3 Communications contained material misstatements and omissions regarding pervasive customer account cramming practices. After the district court dismissed the original complaint with prejudice and denied leave to amend, the Colorado Court of Appeals reversed in part and remanded, permitting Houser to file an amended complaint incorporating cramming-related allegations but cautioning that allegations drawn from other lawsuits must be pleaded as facts after reasonable inquiry under C.R.C.P. 11. Houser filed an amended complaint that relied substantially on confidential witness allegations and other factual assertions drawn from a parallel federal multidistrict litigation, a Minnesota Attorney General enforcement action, and a former-employee whistleblower suit, prompting defendants to challenge whether counsel had conducted a sufficient pre-filing investigation.</p><h3>The Court's Holding</h3><p>The Colorado Supreme Court, sitting en banc, affirmed the court of appeals and held that C.R.C.P. 11(a) requires counsel to conduct a sufficient investigation to support a complaint's allegations at least on information and belief, but that copying allegations from related lawsuits does not standing alone constitute a Rule 11 violation. The Court emphasized that the adequacy of any pre-filing inquiry is highly fact-dependent and must be assessed in the totality of the circumstances, not by application of a categorical rule. Applying that standard, the Court concluded that Houser's counsel satisfied Rule 11 by reviewing SEC filings, press releases, analyst and media reports, public court filings in related cases, and conducting discussions with plaintiffs' counsel in those parallel proceedings before incorporating the challenged allegations into the amended complaint.</p><h3>Why It Matters</h3><p>For securities litigators, this decision confirms that parallel litigation—including federal MDL proceedings, regulatory enforcement actions, and whistleblower suits—constitutes a legitimate and potentially sufficient investigative foundation for state court complaints in Colorado, so long as counsel conducts a genuine, documented review rather than mechanical copying. The ruling also serves as a practical reminder that pre-filing investigation should be contemporaneously documented across multiple source types, because courts will scrutinize the totality of that record when Rule 11 compliance is contested. Defense practitioners, conversely, should recognize that a copying-based Rule 11 challenge will face a high bar in Colorado absent evidence that plaintiff's counsel ignored red flags or conducted no independent verification whatsoever.</p><p class="case-link">Read the full opinion: <a href="https://www.courtlistener.com/opinion/10838730/centurylink-inc-glen-f-post-iii-r-stewart-ewing-jr-david-d-cole/" target="_blank" rel="noopener">CenturyLink, Inc.; Glen F. Post, III; R. Stewart Ewing, Jr.; David D. Cole; William A. Owens; Martha H. Bejar; Virginia Boulet; Peter C. Brown; W. Bruce Hanks; Jeffrey K. Storey; Steven T. Clontz; Mary L. Landrieu; Gregory J. McCray; Harvey P. Perry; Michael J. Roberts; Laurie A. Siegel; and Sunit S. Patel v. Dean Houser</a></p>`
+      },
+      // NEXT_POST_HERE
       {
         date: "April 24, 2025",
         court: "S.D.N.Y.",
