@@ -71,6 +71,10 @@ CONFIRM_PATTERNS = [
 DISQUALIFY_PATTERNS = [
     r"\bsec v\.\b",
     r"securities and exchange commission v\.",
+    r"v\. sec\b",                            # SEC as defendant e.g. Smith v. SEC
+    r"v\. securities and exchange commission",
+    r"petition.*sec\b",                       # petitions for review of SEC orders
+    r"\bsec order\b",
     r"united states v\.",
     r"\bindictment\b",
     r"\bgrand jury\b",
@@ -382,7 +386,7 @@ def build_post_with_claude(result: dict, opinion_text: str) -> dict | None:
 
     try:
         message = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6",
             max_tokens=2500,
             messages=[{"role": "user", "content": prompt}],
         )
