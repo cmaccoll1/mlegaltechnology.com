@@ -1,3 +1,3 @@
-# Advanced Bates Stamper
+# Case Command
 
 # ... (complete content goes here) ...

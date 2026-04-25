@@ -1,3 +1,3 @@
-# Advanced Bates Stamper
+# Advanced File Review GUI
 
 # ... (complete content goes here) ...

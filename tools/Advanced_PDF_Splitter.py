@@ -1,3 +1,3 @@
-# Advanced Bates Stamper
+# Advanced PDF Splitter
 
 # ... (complete content goes here) ...
