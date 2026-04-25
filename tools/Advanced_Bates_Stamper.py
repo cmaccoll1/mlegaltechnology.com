@@ -1,3 +1,0 @@
-# Advanced Bates Stamper
-
-# ... (complete content goes here) ...
