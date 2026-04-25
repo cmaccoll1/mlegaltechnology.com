@@ -154,21 +154,26 @@ def record_posted(log_data: dict, result: dict, opinion_id=None) -> dict:
 def fetch_search_results() -> list:
     """
     Use the CourtListener SEARCH endpoint with type=o (opinions).
-    This is the correct endpoint for full-text queries.
+    Parameters mirror what the CourtListener front-end passes as GET params.
+    The court filter uses court_id repeated per court (OR logic).
+    Date filter is filed_after (matches the front-end parameter name).
     """
     since = (datetime.date.today() - datetime.timedelta(days=LOOKBACK_DAYS)).isoformat()
     headers = cl_headers()
     results = []
 
     for query in SEARCH_QUERIES:
-        params = {
-            "q":           query,
-            "type":        "o",                        # opinions
-            "filed_after": since,
-            "court":       " ".join(TARGET_COURTS),    # space-separated for search endpoint
-            "order_by":    "score desc",
-            "page_size":   8,
-        }
+        # Build params as a list of tuples so we can repeat court_id
+        params = [
+            ("q",           query),
+            ("type",        "o"),
+            ("filed_after", since),
+            ("order_by",    "dateFiled desc"),
+        ]
+        # Each court gets its own court_id parameter (OR logic in CL search)
+        for court in TARGET_COURTS:
+            params.append(("court_id", court))
+
         try:
             r = requests.get(
                 COURTLISTENER_SEARCH,
@@ -176,7 +181,11 @@ def fetch_search_results() -> list:
                 headers=headers,
                 timeout=10,
             )
-            r.raise_for_status()
+            # Log the actual URL so we can debug parameter issues
+            log(f"  Request URL: {r.url[:120]}")
+            if r.status_code != 200:
+                log(f"  HTTP {r.status_code}: {r.text[:200]}")
+                r.raise_for_status()
             data = r.json()
             hits = data.get("results", [])
             log(f"  '{query[:55]}': {len(hits)} results")
