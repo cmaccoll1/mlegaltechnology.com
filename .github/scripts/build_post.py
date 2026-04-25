@@ -156,23 +156,31 @@ SEARCH_QUERIES = [
     "loss causation scienter",
 ]
 
-# STRONG patterns — at least one of these must match.
-# These are specific to federal securities litigation and unlikely
-# to appear in unrelated cases.
+# STRONG patterns — at least one must match in the full opinion text.
+# Written to be robust against HTML encoding, non-breaking hyphens,
+# and variant citation formats that appear in CourtListener text fields.
 CONFIRM_PATTERNS_STRONG = [
-    r"10b-5",
-    r"rule 10b-5",
-    r"10\(b\)",
-    r"78j",                                  # Exchange Act § 10(b) US Code cite
-    r"securities exchange act of 1934",
-    r"77[kl]",                               # Securities Act §§ 11/12 US Code cite
+    # Rule 10b-5 variants (hyphen may be regular, non-breaking, or HTML-encoded)
+    r"10b.5",                                # covers 10b-5, 10b–5, 10b&#8209;5
+    r"10\s*\(\s*b\s*\)",                     # 10(b) with optional spaces
+    r"rule\s+10b",                           # "Rule 10b" as prefix
+    # US Code citations
+    r"78j",                                  # 15 U.S.C. § 78j (Exchange Act § 10(b))
+    r"77k",                                  # 15 U.S.C. § 77k (Securities Act § 11)
+    r"77l",                                  # 15 U.S.C. § 77l (Securities Act § 12)
+    # Full statute names
+    r"securities exchange act",              # catches "of 1934" variant too
     r"securities act of 1933",
+    # Key doctrines unlikely to appear outside securities cases
     r"pslra",
     r"private securities litigation reform",
     r"fraud on the market",
-    r"loss causation",
-    r"section 20\(a\).*securities",
-    r"securities.*section 20\(a\)",
+    r"basic\s+inc",                          # Basic Inc. v. Levinson citation
+    # Common securities litigation terms that are highly specific
+    r"loss\s+causation",
+    r"section\s+20\s*\(\s*a\s*\)",          # § 20(a) control person
+    r"securities\s+fraud\s+class",
+    r"class\s+action.*securities\s+fraud",
 ]
 
 # Any match here disqualifies the opinion
