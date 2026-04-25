@@ -335,21 +335,33 @@ def fetch_opinion_text(cluster_id: int) -> tuple:
             timeout=10,
         )
         r.raise_for_status()
-        opinions = r.json().get("results", [])
+        data = r.json()
+        opinions = data.get("results", [])
         if not opinions:
+            log(f"  fetch_opinion_text: no opinions returned for cluster {cluster_id}")
             return None, ""
 
-        # Prefer the lead/combined opinion
         op = opinions[0]
         opinion_id = op.get("id")
-        text = (
+
+        # Try each text field in order of preference
+        raw = (
             op.get("html_with_citations") or
             op.get("plain_text") or
             op.get("html") or
+            op.get("xml_harvard") or
             ""
         )
-        # Strip HTML tags for cleaner text to send Claude
-        text = re.sub(r"<[^>]+>", " ", text)
+
+        if not raw:
+            # Log what fields ARE present so we know what to try next
+            available = [k for k, v in op.items() if v and isinstance(v, str) and len(v) > 50]
+            log(f"  fetch_opinion_text: all text fields empty for opinion {opinion_id}. "
+                f"Non-empty string fields: {available[:8]}")
+            return opinion_id, ""
+
+        # Strip HTML tags
+        text = re.sub(r"<[^>]+>", " ", raw)
         text = re.sub(r"\s+", " ", text).strip()
         return opinion_id, text
 
@@ -424,6 +436,15 @@ def pick_best(results: list, posted_log: dict):
         # Search result snippets are too short to reliably confirm
         # federal securities law markers.
         opinion_id, text = fetch_opinion_text(cluster_id)
+
+        log(f"  Text fetched: {len(text)} chars for {case_name[:50]}")
+        if len(text) < 100:
+            log(f"  Warning: very short text, checking snippet from search result instead")
+            # Fall back to the snippet CourtListener returned in search results
+            snippet = ""
+            for op in res.get("opinions", []):
+                snippet += op.get("snippet", "") or ""
+            text = snippet or text
 
         if not is_securities_civil_case(res, text):
             continue
