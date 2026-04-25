@@ -1,3 +1,0 @@
-# Advanced File Review GUI
-
-# ... (complete content goes here) ...
