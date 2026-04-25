@@ -27,10 +27,121 @@ import anthropic
 COURTLISTENER_BASE  = "https://www.courtlistener.com/api/rest/v4"
 COURTLISTENER_SEARCH = "https://www.courtlistener.com/api/rest/v4/search/"
 
-# Courts most active in private securities litigation
+# All federal courts: Supreme Court, all circuits, all 94 district courts.
+# CourtListener court IDs follow the pattern: scotus, ca1-ca11, cadc, cafc,
+# and district courts use abbreviations like nysd, cand, txsd, etc.
 TARGET_COURTS = [
+    # Supreme Court
+    "scotus",
+    # Circuit Courts of Appeals
     "ca1","ca2","ca3","ca4","ca5","ca6","ca7","ca8","ca9","ca10","ca11",
-    "nysd","casd","dcd","ilnd","txsd","mad","ded","njd","cand","nyed","flsd","vaed",
+    "cadc",   # D.C. Circuit
+    "cafc",   # Federal Circuit
+    # District Courts — all 94
+    # Alabama
+    "almd","alnd","alsd",
+    # Alaska
+    "akd",
+    # Arizona
+    "azd",
+    # Arkansas
+    "ared","arwd",
+    # California
+    "cacd","caed","cand","casd",
+    # Colorado
+    "cod",
+    # Connecticut
+    "ctd",
+    # Delaware
+    "ded",
+    # Florida
+    "flmd","flnd","flsd",
+    # Georgia
+    "gamd","gand","gasd",
+    # Hawaii
+    "hid",
+    # Idaho
+    "idd",
+    # Illinois
+    "ilcd","ilnd","ilsd",
+    # Indiana
+    "innd","insd",
+    # Iowa
+    "iand","iasd",
+    # Kansas
+    "ksd",
+    # Kentucky
+    "kyed","kywd",
+    # Louisiana
+    "laed","lamd","lawd",
+    # Maine
+    "med",
+    # Maryland
+    "mdd",
+    # Massachusetts
+    "mad",
+    # Michigan
+    "mied","miwd",
+    # Minnesota
+    "mnd",
+    # Mississippi
+    "msnd","mssd",
+    # Missouri
+    "moed","mowd",
+    # Montana
+    "mtd",
+    # Nebraska
+    "ned",
+    # Nevada
+    "nvd",
+    # New Hampshire
+    "nhd",
+    # New Jersey
+    "njd",
+    # New Mexico
+    "nmd",
+    # New York
+    "nyed","nynd","nysd","nywd",
+    # North Carolina
+    "nced","ncmd","ncwd",
+    # North Dakota
+    "ndd",
+    # Ohio
+    "ohnd","ohsd",
+    # Oklahoma
+    "oked","oknd","okwd",
+    # Oregon
+    "ord",
+    # Pennsylvania
+    "paed","pamd","pawd",
+    # Rhode Island
+    "rid",
+    # South Carolina
+    "scd",
+    # South Dakota
+    "sdd",
+    # Tennessee
+    "tned","tnmd","tnwd",
+    # Texas
+    "txed","txnd","txsd","txwd",
+    # Utah
+    "utd",
+    # Vermont
+    "vtd",
+    # Virginia
+    "vaed","vawd",
+    # Washington
+    "waed","wawd",
+    # West Virginia
+    "wvnd","wvsd",
+    # Wisconsin
+    "wied","wiwd",
+    # Wyoming
+    "wyd",
+    # D.C.
+    "dcd",
+    # Territories
+    "prd","vid","gud","nmid",
 ]
 
 # Single-term queries cast a wide net; the confirm/disqualify filters
@@ -297,7 +408,7 @@ def score_result(result: dict, text: str) -> int:
 
 def pick_best(results: list, posted_log: dict):
     candidates = []
-    for res in results[:20]:
+    for res in results[:25]:
         case_name = res.get("caseName") or res.get("case_name") or "Unknown"
 
         if is_already_posted(res, posted_log):
@@ -309,6 +420,9 @@ def pick_best(results: list, posted_log: dict):
             log(f"  Skip (no cluster_id): {case_name[:60]}")
             continue
 
+        # Fetch full opinion text FIRST, then filter against it.
+        # Search result snippets are too short to reliably confirm
+        # federal securities law markers.
         opinion_id, text = fetch_opinion_text(cluster_id)
 
         if not is_securities_civil_case(res, text):
