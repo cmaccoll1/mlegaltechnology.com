@@ -806,12 +806,24 @@
         <!-- LIST VIEW -->
         <div class="blog-list-view" id="blog-list-view">
           <div class="blog-list" id="blog-list">
+                        <article class="blog-card" data-post="0">
+              <div class="blog-card-inner">
+                <div>
+                  <div class="blog-card-meta">
+                    <span class="blog-date">April 24, 2026</span>
+                    <span class="blog-badge">5th Cir.</span>
+                  </div>
+                  <h3>Fifth Circuit En Banc: Advocacy Organizations Lack Standing to Challenge Texas's S.B. 4 Immigration Law</h3>
+                  <p>Sitting en banc, the Fifth Circuit vacated a preliminary injunction blocking Texas Senate Bill 4—which criminalizes unlawful border entry and reentry under state law—after holding that the nonprofit and county plaintiffs lacked Article III standing. The decision turns on the Supreme Court's recent confirmation that organizations cannot manufacture standing by voluntarily incurring costs in response to a law they oppose.</p>
+                </div>
+                <div class="blog-arrow">&#8594;</div>
+              </div>
+            </article>
+            <!-- NEXT_CARD_HERE -->
+
 
             <!-- ═══ COMING SOON ═══ -->
-            <div class="blog-coming-soon">
-              <div class="coming-soon-inner">
-                <div class="coming-soon-icon">⚖</div>
-                <h3>Posts coming soon.</h3>
+<h3>Posts coming soon.</h3>
                 <p>This section will be updated automatically with AI-generated summaries of recent court opinions. Content is not reviewed and may contain errors.</p>
               </div>
             </div>
@@ -885,6 +897,14 @@
     // The automation script will prepend new entries to this array.
     // Each entry: { date, court, title, summary, body }
     const BLOG_POSTS = [
+            {
+        date: "April 24, 2026",
+        court: "5th Cir.",
+        title: "Fifth Circuit En Banc: Advocacy Organizations Lack Standing to Challenge Texas's S.B. 4 Immigration Law",
+        summary: "Sitting en banc, the Fifth Circuit vacated a preliminary injunction blocking Texas Senate Bill 4—which criminalizes unlawful border entry and reentry under state law—after holding that the nonprofit and county plaintiffs lacked Article III standing. The decision turns on the Supreme Court's recent confirmation that organizations cannot manufacture standing by voluntarily incurring costs in response to a law they oppose.",
+        body: `<h3>Background</h3><p>Texas enacted Senate Bill 4 in 2023 to create state-law analogs to federal crimes prohibiting unlawful entry and reentry, along with a procedure allowing state judges to order removal to a foreign nation. Before the law took effect, two nonprofit immigration legal-services organizations—Las Americas Immigrant Advocacy Center and American Gateways—along with El Paso County filed a pre-enforcement facial challenge in the Western District of Texas, arguing S.B. 4 is preempted by the Immigration and Nationality Act and seeking a nationwide injunction against any enforcement. The district court issued a preliminary injunction finding S.B. 4 likely preempted, and a divided Fifth Circuit panel affirmed; the en banc court then took up the appeal.</p><h3>The Court's Holding</h3><p>An en banc majority of eleven judges, in an opinion by Judge Jerry E. Smith, vacated the preliminary injunction solely on standing grounds without reaching the preemption merits. The court held that the nonprofit plaintiffs' claimed injuries—mission frustration and resource diversion caused by voluntarily redirecting staff and services in response to S.B. 4—do not constitute a cognizable injury in fact under Article III, relying on the Supreme Court's 2026 decision in <em>Bost v. Illinois State Board of Elections</em> and its earlier holding in <em>FDA v. Alliance for Hippocratic Medicine</em> for the principle that plaintiffs cannot manufacture standing by voluntarily incurring costs. El Paso County's asserted harms—diluted community trust and anticipated expenditures on jail space and personnel—fared no better, as those injuries were similarly speculative and self-initiated in anticipation of enforcement that had not yet occurred.</p><h3>Why It Matters</h3><p>This decision significantly tightens the standing doctrine for organizational plaintiffs in the Fifth Circuit, making clear that the resource-diversion and mission-frustration theories that advocacy groups have routinely invoked to access federal court are now, post-<em>Alliance for Hippocratic Medicine</em> and <em>Bost</em>, categorically insufficient when the costs are voluntarily assumed in response to challenged government action. Litigators representing nonprofit clients who seek to challenge state or federal statutes must now identify a concrete, non-self-inflicted injury—ideally traceable to direct enforcement against the organization or its constituents—before filing in the Fifth Circuit. The ruling also signals that pre-enforcement facial challenges brought by third-party advocacy organizations face a steeper standing threshold, which will reshape how immigration, civil rights, and public-interest practitioners evaluate plaintiff selection and case strategy at the outset.</p><p class="case-link">Read the full opinion: <a href="https://www.courtlistener.com/opinion/10847941/united-states-v-state-of-texas/" target="_blank" rel="noopener">United States v. State of Texas</a></p>`
+      },
+      // NEXT_POST_HERE
       {
         date: "April 24, 2025",
         court: "S.D.N.Y.",
