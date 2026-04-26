@@ -291,11 +291,16 @@ def scrape_rss_circuit(name: str, feed_url: str) -> list:
 def scrape_dc_circuit() -> list:
     """D.C. Circuit opinions page (HTML, no RSS)."""
     results = []
-    r = get("https://www.cadc.uscourts.gov/internet/opinions.nsf/opinions?openview&count=30")
-    if not r:
-        # Try alternate URL
-        r = get("https://www.cadc.uscourts.gov/internet/opinions.nsf")
-    if not r:
+    # Try multiple known URL patterns for D.C. Circuit
+    for url in [
+        "https://www.cadc.uscourts.gov/internet/opinions.nsf/uscadcopinions.xsp",
+        "https://www.cadc.uscourts.gov/internet/opinions.nsf",
+        "https://www.cadc.uscourts.gov/opinions",
+    ]:
+        r = get(url)
+        if r and len(r.text) > 500:
+            break
+    else:
         return results
 
     # Extract opinion rows — typically contain date, case name, PDF link
@@ -332,8 +337,15 @@ def scrape_dc_circuit() -> list:
 def scrape_third_circuit() -> list:
     """3rd Circuit precedential opinions (HTML)."""
     results = []
-    r = get("https://www2.ca3.uscourts.gov/recentopinions")
-    if not r:
+    for url in [
+        "https://www.ca3.uscourts.gov/recent-opinions",
+        "https://www2.ca3.uscourts.gov/recentopinions",
+        "https://www.ca3.uscourts.gov/opinions",
+    ]:
+        r = get(url)
+        if r and len(r.text) > 500:
+            break
+    else:
         return results
 
     rows = re.findall(r"<tr[^>]*>(.*?)</tr>", r.text, re.DOTALL)
@@ -406,7 +418,16 @@ def scrape_first_circuit() -> list:
 def scrape_stanford_clearinghouse() -> list:
     """Stanford Securities Class Action Clearinghouse — recent decisions."""
     results = []
-    r = get("https://securities.stanford.edu/class-action-filings/decisions.html")
+    for url in [
+        "https://securities.stanford.edu/class-action-filings/decisions.html",
+        "https://securities.stanford.edu/litigation-activity.html",
+    ]:
+        r = get(url)
+        if r and len(r.text) > 500:
+            break
+    else:
+        return results
+    r = r  # already set
     if not r:
         return results
 
@@ -515,10 +536,10 @@ def gather_all_candidates(posted_log: dict) -> list:
 
     # Circuits with RSS feeds
     rss_circuits = [
-        ("2nd Circuit",  "https://www.ca2.uscourts.gov/decisions/isysquery/0a85b038-e9a0-4d52-9b82-55e12e0b29d8/1/doc/Opinions_RSS.xml"),
-        ("4th Circuit",  "https://www.ca4.uscourts.gov/rss.xml"),
-        ("5th Circuit",  "https://www.ca5.uscourts.gov/rss.aspx"),
-        ("9th Circuit",  "https://www.ca9.uscourts.gov/rss/opinions.xml"),
+        ("2nd Circuit",  "https://www.ca2.uscourts.gov/RSSOpinions.xml"),
+        ("4th Circuit",  "https://www.ca4.uscourts.gov/opinions/rss"),
+        ("5th Circuit",  "https://www.ca5.uscourts.gov/rss/opinions/pub"),
+        ("9th Circuit",  "https://cdn.ca9.uscourts.gov/rss/opinions.xml"),
         ("11th Circuit", "https://www.ca11.uscourts.gov/rss.xml"),
     ]
     for name, url in rss_circuits:
@@ -559,7 +580,28 @@ def gather_all_candidates(posted_log: dict) -> list:
             seen_urls.add(u)
         unique.append(item)
 
-    log(f"Total unique candidates after dedup: {len(unique)}")
+    # Filter out candidates with no useful metadata — bare case numbers,
+    # single-word titles, or anything that looks like it has no retrievable text.
+    def is_useful(item):
+        title = (item.get("title") or "").strip()
+        # Must have a real title with at least two words
+        if len(title.split()) < 3:
+            log(f"  Drop (no useful title): '{title}'")
+            return False
+        # Reject bare docket numbers like "24-809" or "No. 24-123"
+        import re
+        if re.match(r'^(No[.]?\s*)?\d{2}-\d{3,5}[.]?$', title.strip()):
+            log(f"  Drop (bare docket number): '{title}'")
+            return False
+        # Must have a URL or pdf_url or cluster_id to retrieve text from
+        has_source = (item.get("url") or item.get("pdf_url") or item.get("cluster_id"))
+        if not has_source:
+            log(f"  Drop (no text source): '{title}'")
+            return False
+        return True
+
+    unique = [item for item in unique if is_useful(item)]
+    log(f"Total useful candidates after quality filter: {len(unique)}")
     return unique
 
 
@@ -601,8 +643,11 @@ def pick_most_significant(candidates: list) -> dict | None:
           high-stakes areas affecting many litigants
         - Are generating buzz in the legal community (SCOTUSblog coverage is a
           strong signal)
+        - Have a descriptive case name (e.g. "Smith v. Jones") not just a docket number
 
-        Deprioritize:
+        Deprioritize or SKIP entirely:
+        - Any entry whose title is just a docket number (e.g. "24-809") with no case name
+        - Any entry with no summary or description whatsoever
         - Routine affirmances
         - Highly fact-specific decisions with little broader impact
         - Criminal cases (unless the legal issue is broadly significant)
@@ -845,10 +890,12 @@ def inject_post_into_html(html: str, post: dict) -> str:
         )
         html = html.replace("// NEXT_POST_HERE\n", new_js, 1)
 
+    # Step 1: bump all existing card indices so the new post becomes index 0
     def bump(m):
         return f'data-post="{int(m.group(1)) + 1}"'
     html = re.sub(r'data-post="(\d+)"', bump, html)
 
+    # Step 2: build the new card (always data-post="0" — it's the newest)
     new_card = (
         f'            <article class="blog-card" data-post="0">\n'
         f'              <div class="blog-card-inner">\n'
@@ -863,17 +910,20 @@ def inject_post_into_html(html: str, post: dict) -> str:
         f'                <div class="blog-arrow">&#8594;</div>\n'
         f'              </div>\n'
         f'            </article>\n'
-        f'            <!-- NEXT_CARD_HERE -->\n'
     )
 
-    if "<!-- NEXT_CARD_HERE -->" in html:
-        html = html.replace("<!-- NEXT_CARD_HERE -->", new_card, 1)
-    else:
+    # Step 3: insert the new card at the TOP of the blog list.
+    # We always anchor to the opening div tag so position is guaranteed,
+    # regardless of where NEXT_CARD_HERE ended up in a prior run.
+    BLOG_LIST_OPEN = '<div class="blog-list" id="blog-list">'
+    if BLOG_LIST_OPEN in html:
         html = html.replace(
-            '<div class="blog-list" id="blog-list">',
-            '<div class="blog-list" id="blog-list">\n            <!-- NEXT_CARD_HERE -->', 1
+            BLOG_LIST_OPEN,
+            BLOG_LIST_OPEN + '\n' + new_card,
+            1
         )
-        html = html.replace("<!-- NEXT_CARD_HERE -->", new_card, 1)
+    else:
+        log("Warning: could not find blog-list div to inject card")
 
     html = re.sub(
         r'\s*<div class="blog-coming-soon">.*?</div>\s*',
@@ -913,6 +963,12 @@ def main():
     log(f"Stage 3: Fetching full text for: {selected['title'][:70]}")
     opinion_text = fetch_full_text(selected)
     log(f"Full text length: {len(opinion_text)} chars")
+
+    # Hard gate: refuse to publish if we couldn't retrieve opinion text
+    if len(opinion_text) < 400:
+        log("ERROR: Opinion text too short to write a reliable post. Exiting without publishing.")
+        log("       This prevents placeholder/hallucinated posts from going live.")
+        return
 
     # Stage 4: write the post
     log("Stage 4: Generating blog post with Claude...")
