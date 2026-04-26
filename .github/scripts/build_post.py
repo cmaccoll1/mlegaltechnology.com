@@ -1,17 +1,24 @@
 """
-build_post.py
-=============
-Runs inside GitHub Actions every weekday morning.
+build_post.py  —  Revised sourcing architecture
+================================================
+Stage 1: Gather recent opinion metadata from:
+  - SCOTUSblog (Supreme Court, same-day coverage)
+  - supremecourt.gov slip opinions
+  - 2nd, 5th, 9th, 11th Circuit RSS feeds
+  - D.C. Circuit HTML page
+  - 3rd Circuit HTML page
+  - Stanford Securities Class Action Clearinghouse
+  - CourtListener (fallback + district courts)
 
-Pipeline:
-  1. Query CourtListener SEARCH API (/api/rest/v4/search/?type=o&q=...)
-     for opinions filed in the last 14 days matching securities law terms
-  2. Filter to confirmed private civil securities litigation
-  3. Reject duplicates via posted_cases.json
-  4. Score and pick the best candidate
-  5. Fetch full opinion text via the opinions endpoint
-  6. Send to Claude for a structured 800-1000 word blog post
-  7. Inject into index.html and update posted_cases.json
+Stage 2: Claude reads all headlines/summaries and picks
+  the single most significant/newsworthy opinion.
+
+Stage 3: Fetch the full opinion text — from the court's
+  own PDF if available, otherwise CourtListener.
+
+Stage 4: Claude writes the blog post.
+
+Stage 5: Inject into index.html, update posted_cases.json.
 """
 
 import os
@@ -19,191 +26,23 @@ import re
 import json
 import datetime
 import textwrap
+import time
 import requests
 import anthropic
+from urllib.parse import urljoin
 
 # ── Config ────────────────────────────────────────────────────────────────────
 
-COURTLISTENER_BASE  = "https://www.courtlistener.com/api/rest/v4"
-COURTLISTENER_SEARCH = "https://www.courtlistener.com/api/rest/v4/search/"
+LOOKBACK_DAYS   = 7        # focus on the last week
+HTML_PATH       = "index.html"
+POSTED_LOG_PATH = "posted_cases.json"
 
-# All federal courts: Supreme Court, all circuits, all 94 district courts.
-# CourtListener court IDs follow the pattern: scotus, ca1-ca11, cadc, cafc,
-# and district courts use abbreviations like nysd, cand, txsd, etc.
-TARGET_COURTS = [
-    # Supreme Court
-    "scotus",
-    # Circuit Courts of Appeals
-    "ca1","ca2","ca3","ca4","ca5","ca6","ca7","ca8","ca9","ca10","ca11",
-    "cadc",   # D.C. Circuit
-    "cafc",   # Federal Circuit
-    # District Courts — all 94
-    # Alabama
-    "almd","alnd","alsd",
-    # Alaska
-    "akd",
-    # Arizona
-    "azd",
-    # Arkansas
-    "ared","arwd",
-    # California
-    "cacd","caed","cand","casd",
-    # Colorado
-    "cod",
-    # Connecticut
-    "ctd",
-    # Delaware
-    "ded",
-    # Florida
-    "flmd","flnd","flsd",
-    # Georgia
-    "gamd","gand","gasd",
-    # Hawaii
-    "hid",
-    # Idaho
-    "idd",
-    # Illinois
-    "ilcd","ilnd","ilsd",
-    # Indiana
-    "innd","insd",
-    # Iowa
-    "iand","iasd",
-    # Kansas
-    "ksd",
-    # Kentucky
-    "kyed","kywd",
-    # Louisiana
-    "laed","lamd","lawd",
-    # Maine
-    "med",
-    # Maryland
-    "mdd",
-    # Massachusetts
-    "mad",
-    # Michigan
-    "mied","miwd",
-    # Minnesota
-    "mnd",
-    # Mississippi
-    "msnd","mssd",
-    # Missouri
-    "moed","mowd",
-    # Montana
-    "mtd",
-    # Nebraska
-    "ned",
-    # Nevada
-    "nvd",
-    # New Hampshire
-    "nhd",
-    # New Jersey
-    "njd",
-    # New Mexico
-    "nmd",
-    # New York
-    "nyed","nynd","nysd","nywd",
-    # North Carolina
-    "nced","ncmd","ncwd",
-    # North Dakota
-    "ndd",
-    # Ohio
-    "ohnd","ohsd",
-    # Oklahoma
-    "oked","oknd","okwd",
-    # Oregon
-    "ord",
-    # Pennsylvania
-    "paed","pamd","pawd",
-    # Rhode Island
-    "rid",
-    # South Carolina
-    "scd",
-    # South Dakota
-    "sdd",
-    # Tennessee
-    "tned","tnmd","tnwd",
-    # Texas
-    "txed","txnd","txsd","txwd",
-    # Utah
-    "utd",
-    # Vermont
-    "vtd",
-    # Virginia
-    "vaed","vawd",
-    # Washington
-    "waed","wawd",
-    # West Virginia
-    "wvnd","wvsd",
-    # Wisconsin
-    "wied","wiwd",
-    # Wyoming
-    "wyd",
-    # D.C.
-    "dcd",
-    # Territories
-    "prd","vid","gud","nmid",
-]
-
-# Single-term queries cast a wide net; the confirm/disqualify filters
-# downstream ensure we only write about civil securities cases.
-# Using broader terms avoids the problem of requiring two rare phrases
-# to co-occur in the same recently-filed opinion.
-SEARCH_QUERIES = [
-    "10b-5",
-    "PSLRA",
-    "securities fraud class action",
-    "section 11 securities act",
-    "loss causation scienter",
-]
-
-# STRONG patterns — at least one must match in the full opinion text.
-# Written to be robust against HTML encoding, non-breaking hyphens,
-# and variant citation formats that appear in CourtListener text fields.
-CONFIRM_PATTERNS_STRONG = [
-    # Rule 10b-5 variants (hyphen may be regular, non-breaking, or HTML-encoded)
-    r"10b.5",                                # covers 10b-5, 10b–5, 10b&#8209;5
-    r"10\s*\(\s*b\s*\)",                     # 10(b) with optional spaces
-    r"rule\s+10b",                           # "Rule 10b" as prefix
-    # US Code citations
-    r"78j",                                  # 15 U.S.C. § 78j (Exchange Act § 10(b))
-    r"77k",                                  # 15 U.S.C. § 77k (Securities Act § 11)
-    r"77l",                                  # 15 U.S.C. § 77l (Securities Act § 12)
-    # Full statute names
-    r"securities exchange act",              # catches "of 1934" variant too
-    r"securities act of 1933",
-    # Key doctrines unlikely to appear outside securities cases
-    r"pslra",
-    r"private securities litigation reform",
-    r"fraud on the market",
-    r"basic\s+inc",                          # Basic Inc. v. Levinson citation
-    # Common securities litigation terms that are highly specific
-    r"loss\s+causation",
-    r"section\s+20\s*\(\s*a\s*\)",          # § 20(a) control person
-    r"securities\s+fraud\s+class",
-    r"class\s+action.*securities\s+fraud",
-]
-
-# Any match here disqualifies the opinion
-DISQUALIFY_PATTERNS = [
-    r"\bsec v\.\b",
-    r"securities and exchange commission v\.",
-    r"v\. sec\b",                            # SEC as defendant e.g. Smith v. SEC
-    r"v\. securities and exchange commission",
-    r"petition.*sec\b",                       # petitions for review of SEC orders
-    r"\bsec order\b",
-    r"united states v\.",
-    r"\bindictment\b",
-    r"\bgrand jury\b",
-    r"finra arbitration",
-    r"\barbitration award\b",
-    r"\bsocial security\b",
-    r"unemployment.*benefit",
-]
-
-LOOKBACK_DAYS    = 30
-HTML_PATH        = "index.html"
-POSTED_LOG_PATH  = "posted_cases.json"
-
+HEADERS = {
+    "User-Agent": (
+        "MLegalTechnology blog builder (mlegaltechnology.com); "
+        "contact: see site"
+    )
+}
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -211,14 +50,69 @@ def log(msg):
     print(f"[build_post] {msg}")
 
 
-def cl_headers() -> dict:
-    hdrs = {"User-Agent": "MLegalTechnology blog builder (mlegaltechnology.com)"}
-    token = os.environ.get("COURTLISTENER_API_KEY", "")
-    if token:
-        hdrs["Authorization"] = f"Token {token}"
-    else:
-        log("Warning: COURTLISTENER_API_KEY not set")
-    return hdrs
+def cutoff_date() -> datetime.date:
+    return datetime.date.today() - datetime.timedelta(days=LOOKBACK_DAYS)
+
+
+def get(url, timeout=15, **kwargs):
+    """Simple GET with shared headers and error handling."""
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=timeout, **kwargs)
+        r.raise_for_status()
+        return r
+    except Exception as e:
+        log(f"  GET failed {url[:80]}: {e}")
+        return None
+
+
+def parse_date(s: str) -> datetime.date | None:
+    """Try several date formats and return a date or None."""
+    if not s:
+        return None
+    s = s.strip()
+    for fmt in (
+        "%Y-%m-%d", "%B %d, %Y", "%b %d, %Y",
+        "%d %B %Y", "%d %b %Y", "%m/%d/%Y",
+        "%a, %d %b %Y %H:%M:%S %z", "%a, %d %b %Y %H:%M:%S %Z",
+    ):
+        try:
+            return datetime.datetime.strptime(s[:len(fmt)+5], fmt).date()
+        except ValueError:
+            continue
+    # Try trimming timezone suffixes and retrying
+    s2 = re.sub(r"\s+(GMT|UTC|EST|EDT|CST|CDT|PST|PDT|[+-]\d{4})$", "", s)
+    if s2 != s:
+        return parse_date(s2)
+    return None
+
+
+def is_recent(date_str: str) -> bool:
+    d = parse_date(date_str)
+    if d is None:
+        return True   # include if we can't parse — better to over-include
+    return d >= cutoff_date()
+
+
+def extract_pdf_text(pdf_bytes: bytes) -> str:
+    """Extract text from PDF bytes using PyMuPDF if available."""
+    try:
+        import fitz  # PyMuPDF
+        doc = fitz.open(stream=pdf_bytes, filetype="pdf")
+        pages = []
+        for page in doc:
+            pages.append(page.get_text())
+        return " ".join(pages)
+    except ImportError:
+        log("  PyMuPDF not available — skipping PDF text extraction")
+        return ""
+    except Exception as e:
+        log(f"  PDF extraction error: {e}")
+        return ""
+
+
+def strip_html(html: str) -> str:
+    text = re.sub(r"<[^>]+>", " ", html)
+    return re.sub(r"\s+", " ", text).strip()
 
 
 # ── Duplicate tracking ────────────────────────────────────────────────────────
@@ -228,303 +122,653 @@ def load_posted_log() -> dict:
         try:
             with open(POSTED_LOG_PATH, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                data.setdefault("opinion_ids", [])
-                data.setdefault("cluster_ids", [])
-                data.setdefault("case_names", [])
+                data.setdefault("titles", [])
+                data.setdefault("urls", [])
                 return data
         except Exception as e:
             log(f"Warning: could not read {POSTED_LOG_PATH}: {e}")
-    return {"opinion_ids": [], "cluster_ids": [], "case_names": []}
+    return {"titles": [], "urls": []}
 
 
 def save_posted_log(data: dict):
     with open(POSTED_LOG_PATH, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
-    log(f"Posted log saved: {len(data['opinion_ids'])} entries")
 
 
-def normalize(name: str) -> str:
-    name = name.lower()
-    name = re.sub(r"[^\w\s]", " ", name)
-    return re.sub(r"\s+", " ", name).strip()
+def normalize(s: str) -> str:
+    return re.sub(r"\s+", " ", re.sub(r"[^\w\s]", " ", s.lower())).strip()
 
 
-def is_already_posted(result: dict, log_data: dict) -> bool:
-    # Search results use cluster_id; opinions endpoint uses id
-    cluster_id = result.get("cluster_id")
-    if cluster_id and cluster_id in log_data["cluster_ids"]:
+def is_duplicate(title: str, url: str, log_data: dict) -> bool:
+    if url and url in log_data["urls"]:
         return True
-    case_name = normalize(result.get("caseName") or result.get("case_name") or "")
-    if case_name and case_name in log_data["case_names"]:
+    t = normalize(title)
+    if any(t == x or (len(t) > 20 and (t in x or x in t))
+           for x in log_data["titles"]):
         return True
     return False
 
 
-def record_posted(log_data: dict, result: dict, opinion_id=None) -> dict:
-    cluster_id = result.get("cluster_id")
-    if cluster_id and cluster_id not in log_data["cluster_ids"]:
-        log_data["cluster_ids"].append(cluster_id)
-    if opinion_id and opinion_id not in log_data["opinion_ids"]:
-        log_data["opinion_ids"].append(opinion_id)
-    case_name = normalize(result.get("caseName") or result.get("case_name") or "")
-    if case_name and case_name not in log_data["case_names"]:
-        log_data["case_names"].append(case_name)
+def record_posted(log_data: dict, title: str, url: str) -> dict:
+    t = normalize(title)
+    if t not in log_data["titles"]:
+        log_data["titles"].append(t)
+    if url and url not in log_data["urls"]:
+        log_data["urls"].append(url)
     return log_data
 
 
-# ── CourtListener search ──────────────────────────────────────────────────────
+# ── Stage 1: Source scrapers ──────────────────────────────────────────────────
+# Each scraper returns a list of dicts:
+# {
+#   "title":   str,    # case name or headline
+#   "date":    str,    # date string (best effort)
+#   "court":   str,    # human-readable court name
+#   "summary": str,    # one-sentence description if available
+#   "url":     str,    # link to opinion or coverage page
+#   "pdf_url": str,    # direct PDF link if known
+#   "source":  str,    # which scraper found this
+# }
 
-def fetch_search_results() -> list:
-    """
-    Use the CourtListener SEARCH endpoint with type=o (opinions).
-    Parameters mirror what the CourtListener front-end passes as GET params.
-    The court filter uses court_id repeated per court (OR logic).
-    Date filter is filed_after (matches the front-end parameter name).
-    """
-    since = (datetime.date.today() - datetime.timedelta(days=LOOKBACK_DAYS)).isoformat()
-    headers = cl_headers()
+def scrape_scotusblog() -> list:
+    """SCOTUSblog recent decisions page."""
     results = []
+    r = get("https://www.scotusblog.com/case-files/terms/ot2024/")
+    if not r:
+        # Try the main decisions feed
+        r = get("https://www.scotusblog.com/feed/")
+    if not r:
+        return results
 
-    for query in SEARCH_QUERIES:
-        # Build params as a list of tuples so we can repeat court_id
-        params = [
-            ("q",           query),
-            ("type",        "o"),
-            ("filed_after", since),
-            ("order_by",    "dateFiled desc"),
-        ]
-        # Each court gets its own court_id parameter (OR logic in CL search)
-        for court in TARGET_COURTS:
-            params.append(("court_id", court))
+    # Parse RSS if it's the feed
+    if "<?xml" in r.text[:100] or "<rss" in r.text[:200]:
+        entries = re.findall(
+            r"<item>(.*?)</item>", r.text, re.DOTALL
+        )
+        for entry in entries:
+            title = re.search(r"<title><!\[CDATA\[(.*?)\]\]>|<title>(.*?)</title>",
+                              entry, re.DOTALL)
+            title = (title.group(1) or title.group(2) or "").strip() if title else ""
+            link = re.search(r"<link>(.*?)</link>|<link[^>]+href=\"([^\"]+)\"",
+                             entry, re.DOTALL)
+            link = (link.group(1) or link.group(2) or "").strip() if link else ""
+            pub_date = re.search(r"<pubDate>(.*?)</pubDate>", entry)
+            pub_date = pub_date.group(1).strip() if pub_date else ""
+            desc = re.search(r"<description><!\[CDATA\[(.*?)\]\]>|<description>(.*?)</description>",
+                             entry, re.DOTALL)
+            desc = strip_html((desc.group(1) or desc.group(2) or "")) if desc else ""
 
+            if not is_recent(pub_date):
+                continue
+            if title:
+                results.append({
+                    "title": title, "date": pub_date, "court": "U.S. Supreme Court",
+                    "summary": desc[:300], "url": link, "pdf_url": "",
+                    "source": "SCOTUSblog",
+                })
+    log(f"  SCOTUSblog: {len(results)} items")
+    return results
+
+
+def scrape_supremecourt_gov() -> list:
+    """Pull slip opinions directly from supremecourt.gov."""
+    results = []
+    r = get("https://www.supremecourt.gov/opinions/slipopinion/24")
+    if not r:
+        return results
+
+    # The page lists opinions in a table: date, docket, name, J., PDF link
+    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", r.text, re.DOTALL)
+    for row in rows:
+        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
+        if len(cells) < 3:
+            continue
+        date_text  = strip_html(cells[0]).strip()
+        case_text  = strip_html(cells[2]).strip() if len(cells) > 2 else ""
+        pdf_match  = re.search(r'href="(/opinions/[^"]+\.pdf)"', row, re.IGNORECASE)
+        pdf_url    = f"https://www.supremecourt.gov{pdf_match.group(1)}" if pdf_match else ""
+
+        if not date_text or not case_text:
+            continue
+        if not is_recent(date_text):
+            continue
+
+        results.append({
+            "title": case_text, "date": date_text, "court": "U.S. Supreme Court",
+            "summary": "", "url": pdf_url,
+            "pdf_url": pdf_url, "source": "supremecourt.gov",
+        })
+
+    log(f"  supremecourt.gov: {len(results)} items")
+    return results
+
+
+def scrape_rss_circuit(name: str, feed_url: str) -> list:
+    """Generic RSS scraper for circuit court opinion feeds."""
+    results = []
+    r = get(feed_url)
+    if not r:
+        return results
+
+    entries = re.findall(r"<item>(.*?)</item>", r.text, re.DOTALL)
+    for entry in entries:
+        title = re.search(
+            r"<title><!\[CDATA\[(.*?)\]\]>|<title>(.*?)</title>", entry, re.DOTALL
+        )
+        title = (title.group(1) or title.group(2) or "").strip() if title else ""
+        link = re.search(
+            r"<link>(.*?)</link>|<link[^>]+href=\"([^\"]+)\"", entry, re.DOTALL
+        )
+        link = (link.group(1) or link.group(2) or "").strip() if link else ""
+        pub_date = re.search(r"<pubDate>(.*?)</pubDate>|<dc:date>(.*?)</dc:date>",
+                             entry, re.DOTALL)
+        pub_date = (pub_date.group(1) or pub_date.group(2) or "").strip() if pub_date else ""
+        desc = re.search(
+            r"<description><!\[CDATA\[(.*?)\]\]>|<description>(.*?)</description>",
+            entry, re.DOTALL
+        )
+        desc = strip_html((desc.group(1) or desc.group(2) or "")) if desc else ""
+
+        if not is_recent(pub_date):
+            continue
+
+        # Detect PDF link in description or link field
+        pdf_url = ""
+        if link.lower().endswith(".pdf"):
+            pdf_url = link
+
+        if title:
+            results.append({
+                "title": title, "date": pub_date, "court": name,
+                "summary": desc[:300], "url": link,
+                "pdf_url": pdf_url, "source": name,
+            })
+
+    log(f"  {name}: {len(results)} items")
+    return results
+
+
+def scrape_dc_circuit() -> list:
+    """D.C. Circuit opinions page (HTML, no RSS)."""
+    results = []
+    r = get("https://www.cadc.uscourts.gov/internet/opinions.nsf/opinions?openview&count=30")
+    if not r:
+        # Try alternate URL
+        r = get("https://www.cadc.uscourts.gov/internet/opinions.nsf")
+    if not r:
+        return results
+
+    # Extract opinion rows — typically contain date, case name, PDF link
+    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", r.text, re.DOTALL)
+    for row in rows:
+        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
+        if len(cells) < 2:
+            continue
+        date_text = strip_html(cells[0]).strip()
+        case_text = strip_html(cells[1]).strip() if len(cells) > 1 else ""
+        pdf_match = re.search(r'href="([^"]+\.pdf)"', row, re.IGNORECASE)
+        pdf_url   = ""
+        if pdf_match:
+            href = pdf_match.group(1)
+            pdf_url = href if href.startswith("http") else urljoin(
+                "https://www.cadc.uscourts.gov", href
+            )
+
+        if not date_text or not case_text or len(case_text) < 4:
+            continue
+        if not is_recent(date_text):
+            continue
+
+        results.append({
+            "title": case_text, "date": date_text, "court": "D.C. Circuit",
+            "summary": "", "url": pdf_url or "https://www.cadc.uscourts.gov",
+            "pdf_url": pdf_url, "source": "D.C. Circuit",
+        })
+
+    log(f"  D.C. Circuit: {len(results)} items")
+    return results
+
+
+def scrape_third_circuit() -> list:
+    """3rd Circuit precedential opinions (HTML)."""
+    results = []
+    r = get("https://www2.ca3.uscourts.gov/recentopinions")
+    if not r:
+        return results
+
+    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", r.text, re.DOTALL)
+    for row in rows:
+        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
+        if len(cells) < 2:
+            continue
+        date_text = strip_html(cells[0]).strip()
+        case_text = strip_html(cells[1]).strip() if len(cells) > 1 else ""
+        pdf_match = re.search(r'href="([^"]+\.pdf)"', row, re.IGNORECASE)
+        pdf_url   = ""
+        if pdf_match:
+            href = pdf_match.group(1)
+            pdf_url = href if href.startswith("http") else urljoin(
+                "https://www2.ca3.uscourts.gov", href
+            )
+
+        if not date_text or not case_text or len(case_text) < 4:
+            continue
+        if not is_recent(date_text):
+            continue
+
+        results.append({
+            "title": case_text, "date": date_text, "court": "3rd Circuit",
+            "summary": "", "url": pdf_url or "https://www2.ca3.uscourts.gov",
+            "pdf_url": pdf_url, "source": "3rd Circuit",
+        })
+
+    log(f"  3rd Circuit: {len(results)} items")
+    return results
+
+
+def scrape_first_circuit() -> list:
+    """1st Circuit opinions page (HTML table)."""
+    results = []
+    r = get("https://www.ca1.uscourts.gov/opinions")
+    if not r:
+        return results
+
+    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", r.text, re.DOTALL)
+    for row in rows:
+        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
+        if len(cells) < 2:
+            continue
+        date_text = strip_html(cells[0]).strip()
+        case_text = strip_html(cells[1]).strip() if len(cells) > 1 else ""
+        pdf_match = re.search(r'href="([^"]+\.pdf)"', row, re.IGNORECASE)
+        pdf_url   = ""
+        if pdf_match:
+            href = pdf_match.group(1)
+            pdf_url = href if href.startswith("http") else urljoin(
+                "https://www.ca1.uscourts.gov", href
+            )
+
+        if not date_text or not case_text or len(case_text) < 4:
+            continue
+        if not is_recent(date_text):
+            continue
+
+        results.append({
+            "title": case_text, "date": date_text, "court": "1st Circuit",
+            "summary": "", "url": pdf_url or "https://www.ca1.uscourts.gov",
+            "pdf_url": pdf_url, "source": "1st Circuit",
+        })
+
+    log(f"  1st Circuit: {len(results)} items")
+    return results
+
+
+def scrape_stanford_clearinghouse() -> list:
+    """Stanford Securities Class Action Clearinghouse — recent decisions."""
+    results = []
+    r = get("https://securities.stanford.edu/class-action-filings/decisions.html")
+    if not r:
+        return results
+
+    # Extract case links and dates from the decisions table
+    rows = re.findall(r"<tr[^>]*>(.*?)</tr>", r.text, re.DOTALL)
+    for row in rows:
+        cells = re.findall(r"<td[^>]*>(.*?)</td>", row, re.DOTALL)
+        if len(cells) < 2:
+            continue
+        date_text = strip_html(cells[0]).strip()
+        case_text = strip_html(cells[1]).strip() if len(cells) > 1 else ""
+        link_match = re.search(r'href="([^"]+)"', cells[1]) if len(cells) > 1 else None
+        url = ""
+        if link_match:
+            href = link_match.group(1)
+            url = href if href.startswith("http") else urljoin(
+                "https://securities.stanford.edu", href
+            )
+
+        if not date_text or not case_text or len(case_text) < 4:
+            continue
+        if not is_recent(date_text):
+            continue
+
+        results.append({
+            "title": case_text, "date": date_text,
+            "court": "Securities Class Action (Stanford)",
+            "summary": "Securities class action decision tracked by Stanford Clearinghouse.",
+            "url": url, "pdf_url": "", "source": "Stanford Clearinghouse",
+        })
+
+    log(f"  Stanford Clearinghouse: {len(results)} items")
+    return results
+
+
+def scrape_courtlistener_fallback() -> list:
+    """
+    CourtListener fallback — catches anything the other sources missed,
+    especially district court opinions in high-profile cases.
+    Focuses on the most active securities courts.
+    """
+    results = []
+    since = cutoff_date().isoformat()
+    token = os.environ.get("COURTLISTENER_API_KEY", "")
+    cl_headers = dict(HEADERS)
+    if token:
+        cl_headers["Authorization"] = f"Token {token}"
+
+    queries = ["securities fraud class action", "10b-5", "PSLRA"]
+    courts  = ["nysd", "casd", "dcd", "ded", "cand", "nyed", "flsd"]
+
+    for query in queries:
+        params = [("q", query), ("type", "o"), ("filed_after", since),
+                  ("order_by", "dateFiled desc")]
+        for c in courts:
+            params.append(("court_id", c))
         try:
             r = requests.get(
-                COURTLISTENER_SEARCH,
-                params=params,
-                headers=headers,
-                timeout=10,
+                "https://www.courtlistener.com/api/rest/v4/search/",
+                params=params, headers=cl_headers, timeout=10,
             )
-            # Log the actual URL so we can debug parameter issues
-            log(f"  Request URL: {r.url[:120]}")
-            if r.status_code != 200:
-                log(f"  HTTP {r.status_code}: {r.text[:200]}")
-                r.raise_for_status()
-            data = r.json()
-            hits = data.get("results", [])
-            log(f"  '{query[:55]}': {len(hits)} results")
-            results.extend(hits)
+            r.raise_for_status()
+            for item in r.json().get("results", []):
+                case_name = item.get("caseName") or item.get("case_name") or ""
+                if not case_name:
+                    continue
+                url = ""
+                if item.get("absolute_url"):
+                    url = f"https://www.courtlistener.com{item['absolute_url']}"
+                results.append({
+                    "title":   case_name,
+                    "date":    item.get("dateFiled") or item.get("date_filed") or "",
+                    "court":   item.get("court") or item.get("court_id") or "Federal District Court",
+                    "summary": "",
+                    "url":     url,
+                    "pdf_url": "",
+                    "cluster_id": item.get("cluster_id"),
+                    "source":  "CourtListener",
+                })
         except Exception as e:
-            log(f"  Warning: search failed for '{query[:55]}': {e}")
+            log(f"  CourtListener fallback error ({query}): {e}")
 
-    # Deduplicate by cluster_id
+    # Deduplicate by normalized title
     seen, unique = set(), []
     for item in results:
-        cid = item.get("cluster_id") or item.get("absolute_url", "")
-        if cid not in seen:
-            seen.add(cid)
+        k = normalize(item["title"])
+        if k not in seen:
+            seen.add(k)
             unique.append(item)
 
-    log(f"Total unique search results: {len(unique)}")
+    log(f"  CourtListener fallback: {len(unique)} items")
     return unique
 
 
-def fetch_opinion_text(cluster_id: int) -> tuple:
+def gather_all_candidates(posted_log: dict) -> list:
+    """Run all scrapers and return a deduplicated candidate list."""
+    log("Stage 1: Gathering candidates from all sources...")
+
+    all_items = []
+
+    # Supreme Court
+    all_items += scrape_scotusblog()
+    time.sleep(1)
+    all_items += scrape_supremecourt_gov()
+    time.sleep(1)
+
+    # Circuits with RSS feeds
+    rss_circuits = [
+        ("2nd Circuit",  "https://www.ca2.uscourts.gov/decisions/isysquery/0a85b038-e9a0-4d52-9b82-55e12e0b29d8/1/doc/Opinions_RSS.xml"),
+        ("4th Circuit",  "https://www.ca4.uscourts.gov/rss.xml"),
+        ("5th Circuit",  "https://www.ca5.uscourts.gov/rss.aspx"),
+        ("9th Circuit",  "https://www.ca9.uscourts.gov/rss/opinions.xml"),
+        ("11th Circuit", "https://www.ca11.uscourts.gov/rss.xml"),
+    ]
+    for name, url in rss_circuits:
+        all_items += scrape_rss_circuit(name, url)
+        time.sleep(0.5)
+
+    # HTML scrapers
+    all_items += scrape_first_circuit()
+    time.sleep(0.5)
+    all_items += scrape_dc_circuit()
+    time.sleep(0.5)
+    all_items += scrape_third_circuit()
+    time.sleep(0.5)
+
+    # Supplementary
+    all_items += scrape_stanford_clearinghouse()
+    time.sleep(0.5)
+
+    # CourtListener fallback
+    all_items += scrape_courtlistener_fallback()
+
+    # Global deduplication by normalized title + url
+    seen_titles, seen_urls, unique = set(), set(), []
+    for item in all_items:
+        t = normalize(item.get("title", ""))
+        u = item.get("url", "")
+        if not t or len(t) < 5:
+            continue
+        if t in seen_titles:
+            continue
+        if u and u in seen_urls:
+            continue
+        if is_duplicate(item["title"], u, posted_log):
+            log(f"  Skip (already posted): {item['title'][:60]}")
+            continue
+        seen_titles.add(t)
+        if u:
+            seen_urls.add(u)
+        unique.append(item)
+
+    log(f"Total unique candidates after dedup: {len(unique)}")
+    return unique
+
+
+# ── Stage 2: Claude picks the most significant opinion ───────────────────────
+
+def pick_most_significant(candidates: list) -> dict | None:
     """
-    Given a cluster_id from search results, fetch the opinions for that
-    cluster and return (opinion_id, text).
-    Uses html_with_citations as the preferred text field per CL docs.
+    Ask Claude to read all candidate headlines and pick the single most
+    significant opinion for a litigation-focused audience.
     """
-    headers = cl_headers()
-    try:
-        r = requests.get(
-            f"{COURTLISTENER_BASE}/opinions/",
-            params={"cluster": cluster_id},
-            headers=headers,
-            timeout=10,
-        )
-        r.raise_for_status()
-        data = r.json()
-        opinions = data.get("results", [])
-        if not opinions:
-            log(f"  fetch_opinion_text: no opinions returned for cluster {cluster_id}")
-            return None, ""
-
-        op = opinions[0]
-        opinion_id = op.get("id")
-
-        # Try each text field in order of preference
-        raw = (
-            op.get("html_with_citations") or
-            op.get("plain_text") or
-            op.get("html") or
-            op.get("xml_harvard") or
-            ""
-        )
-
-        if not raw:
-            # Log what fields ARE present so we know what to try next
-            available = [k for k, v in op.items() if v and isinstance(v, str) and len(v) > 50]
-            log(f"  fetch_opinion_text: all text fields empty for opinion {opinion_id}. "
-                f"Non-empty string fields: {available[:8]}")
-            return opinion_id, ""
-
-        # Strip HTML tags
-        text = re.sub(r"<[^>]+>", " ", raw)
-        text = re.sub(r"\s+", " ", text).strip()
-        return opinion_id, text
-
-    except Exception as e:
-        log(f"  Warning: could not fetch opinion text for cluster {cluster_id}: {e}")
-        return None, ""
-
-
-# ── Filtering and scoring ─────────────────────────────────────────────────────
-
-def is_securities_civil_case(result: dict, text: str) -> bool:
-    case_name = (result.get("caseName") or result.get("case_name") or "")
-    haystack = (case_name + " " + text[:8000]).lower()
-
-    # Must match at least one STRONG federal securities law marker
-    confirmed = any(
-        re.search(p, haystack, re.IGNORECASE) for p in CONFIRM_PATTERNS_STRONG
-    )
-    if not confirmed:
-        log(f"  Filtered (no federal securities markers): {case_name[:60]}")
-        return False
-
-    # Must not match any disqualifying pattern
-    for p in DISQUALIFY_PATTERNS:
-        if re.search(p, haystack, re.IGNORECASE):
-            log(f"  Filtered (disqualified '{p}'): {case_name[:60]}")
-            return False
-
-    return True
-
-
-def score_result(result: dict, text: str) -> int:
-    score = 0
-    court = (result.get("court_id") or result.get("court") or "").lower()
-    haystack = (
-        (result.get("caseName") or "") + " " + text[:5000]
-    ).lower()
-
-    if re.match(r"^ca\d{1,2}$", court):
-        score += 40
-    score += min(len(text) // 500, 25)
-
-    priority = {
-        "class certification": 20, "motion to dismiss": 12,
-        "summary judgment": 12,    "scienter": 10,
-        "loss causation": 10,      "safe harbor": 10,
-        "fraud on the market": 10, "section 11": 8,
-        "section 12": 8,           "control person": 8,
-        "material misrepresentation": 8, "pleading standard": 5,
-    }
-    for term, pts in priority.items():
-        if term in haystack:
-            score += pts
-    return score
-
-
-def pick_best(results: list, posted_log: dict):
-    candidates = []
-    for res in results[:25]:
-        case_name = res.get("caseName") or res.get("case_name") or "Unknown"
-
-        if is_already_posted(res, posted_log):
-            log(f"  Skip (duplicate): {case_name[:60]}")
-            continue
-
-        cluster_id = res.get("cluster_id")
-        if not cluster_id:
-            log(f"  Skip (no cluster_id): {case_name[:60]}")
-            continue
-
-        # Fetch full opinion text FIRST, then filter against it.
-        # Search result snippets are too short to reliably confirm
-        # federal securities law markers.
-        opinion_id, text = fetch_opinion_text(cluster_id)
-
-        log(f"  Text fetched: {len(text)} chars for {case_name[:50]}")
-        if len(text) < 100:
-            log(f"  Warning: very short text, checking snippet from search result instead")
-            # Fall back to the snippet CourtListener returned in search results
-            snippet = ""
-            for op in res.get("opinions", []):
-                snippet += op.get("snippet", "") or ""
-            text = snippet or text
-
-        if not is_securities_civil_case(res, text):
-            continue
-
-        score = score_result(res, text)
-        log(f"  Candidate score={score:3d}: {case_name[:60]}")
-        candidates.append((score, res, text, opinion_id))
-
     if not candidates:
-        return None, None, None
+        return None
 
-    candidates.sort(key=lambda x: x[0], reverse=True)
-    score, best_res, best_text, best_op_id = candidates[0]
-    log(f"Selected (score {score}): "
-        f"{(best_res.get('caseName') or best_res.get('case_name', ''))}")
-    return best_res, best_text, best_op_id
-
-
-# ── Claude post generation ────────────────────────────────────────────────────
-
-def build_post_with_claude(result: dict, opinion_text: str) -> dict | None:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
-    case_name  = result.get("caseName") or result.get("case_name") or "Unknown"
-    court      = result.get("court") or result.get("court_id") or ""
-    date_filed = result.get("dateFiled") or result.get("date_filed") or str(datetime.date.today())
-    docket_num = result.get("docketNumber") or result.get("docket_number") or ""
+    # Build a numbered list of candidates for Claude to evaluate
+    lines = []
+    for i, c in enumerate(candidates):
+        line = f"{i+1}. [{c['court']}] {c['title']}"
+        if c.get("summary"):
+            line += f" — {c['summary'][:150]}"
+        if c.get("date"):
+            line += f" (filed: {c['date'][:20]})"
+        lines.append(line)
 
-    truncated = opinion_text[:12000] if opinion_text else (
-        f"[Full text unavailable. Case: {case_name}, Court: {court}, Filed: {date_filed}]"
-    )
-
-    case_url = f"https://www.courtlistener.com{result.get('absolute_url', '')}"
+    candidate_list = "\n".join(lines)
 
     prompt = textwrap.dedent(f"""
-        You are a securities litigation attorney writing a blog post for a professional
-        audience of litigators. Your writing is clear, precise, and analytically rigorous.
-        Avoid filler phrases. Write in complete paragraphs, not bullet points.
+        You are a senior litigation attorney and legal editor. Below is a list of
+        recent federal court opinions from the past week. Your job is to identify
+        the single most significant opinion for a general litigation audience.
 
-        Write a blog post about the following private civil securities litigation opinion.
+        Prioritize opinions that:
+        - Come from the Supreme Court or circuit courts (over district courts)
+        - Resolve a circuit split or establish a new legal standard
+        - Are en banc decisions
+        - Reverse a lower court on an important legal question
+        - Involve securities fraud, antitrust, administrative law, or other
+          high-stakes areas affecting many litigants
+        - Are generating buzz in the legal community (SCOTUSblog coverage is a
+          strong signal)
+
+        Deprioritize:
+        - Routine affirmances
+        - Highly fact-specific decisions with little broader impact
+        - Criminal cases (unless the legal issue is broadly significant)
+        - Unpublished opinions
+
+        CANDIDATE OPINIONS:
+        {candidate_list}
+
+        Respond ONLY with a JSON object, no markdown, no explanation:
+        {{
+          "selected_index": <integer, 1-based index from the list above>,
+          "reason": "<one sentence explaining why this is most significant>"
+        }}
+    """).strip()
+
+    try:
+        message = client.messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = message.content[0].text.strip()
+        raw = re.sub(r"^```(?:json)?\s*", "", raw)
+        raw = re.sub(r"\s*```$", "", raw)
+        result = json.loads(raw)
+        idx = int(result["selected_index"]) - 1
+        reason = result.get("reason", "")
+        if 0 <= idx < len(candidates):
+            selected = candidates[idx]
+            log(f"Claude selected: {selected['title'][:70]}")
+            log(f"Reason: {reason}")
+            return selected
+        else:
+            log(f"Claude returned out-of-range index {idx+1}")
+            return candidates[0]
+    except Exception as e:
+        log(f"Significance scoring error: {e} — falling back to first candidate")
+        return candidates[0] if candidates else None
+
+
+# ── Stage 3: Fetch full opinion text ─────────────────────────────────────────
+
+def fetch_full_text(candidate: dict) -> str:
+    """
+    Fetch the full opinion text. Priority:
+    1. Direct PDF from the court (pdf_url)
+    2. CourtListener cluster lookup (if cluster_id present)
+    3. Fetch the candidate URL and extract text
+    """
+    text = ""
+
+    # Option 1: direct PDF
+    if candidate.get("pdf_url"):
+        log(f"  Fetching PDF: {candidate['pdf_url'][:80]}")
+        r = get(candidate["pdf_url"], timeout=20)
+        if r and r.content:
+            text = extract_pdf_text(r.content)
+            if len(text) > 500:
+                log(f"  PDF text extracted: {len(text)} chars")
+                return text
+
+    # Option 2: CourtListener cluster
+    if candidate.get("cluster_id"):
+        token = os.environ.get("COURTLISTENER_API_KEY", "")
+        cl_headers = dict(HEADERS)
+        if token:
+            cl_headers["Authorization"] = f"Token {token}"
+        try:
+            r = requests.get(
+                "https://www.courtlistener.com/api/rest/v4/opinions/",
+                params={"cluster": candidate["cluster_id"]},
+                headers=cl_headers, timeout=10,
+            )
+            r.raise_for_status()
+            ops = r.json().get("results", [])
+            if ops:
+                op = ops[0]
+                raw = (op.get("html_with_citations") or
+                       op.get("plain_text") or
+                       op.get("html") or "")
+                text = strip_html(raw)
+                if len(text) > 500:
+                    log(f"  CourtListener text: {len(text)} chars")
+                    return text
+        except Exception as e:
+            log(f"  CourtListener cluster fetch error: {e}")
+
+    # Option 3: Fetch the URL directly and extract text
+    if candidate.get("url") and not candidate["url"].endswith(".pdf"):
+        log(f"  Fetching URL: {candidate['url'][:80]}")
+        r = get(candidate["url"], timeout=15)
+        if r:
+            text = strip_html(r.text)
+            # Trim boilerplate — keep up to 15k chars from the middle
+            if len(text) > 15000:
+                text = text[2000:17000]
+            if len(text) > 200:
+                log(f"  URL text extracted: {len(text)} chars")
+                return text
+
+    log("  Warning: could not retrieve full opinion text")
+    return ""
+
+
+# ── Stage 4: Claude writes the post ──────────────────────────────────────────
+
+def build_post_with_claude(candidate: dict, opinion_text: str) -> dict | None:
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+
+    case_name  = candidate.get("title", "Unknown")
+    court      = candidate.get("court", "")
+    date_filed = candidate.get("date", str(datetime.date.today()))
+    source_url = candidate.get("url") or candidate.get("pdf_url") or ""
+
+    truncated = opinion_text[:10000] if opinion_text else (
+        f"[Full text unavailable — Case: {case_name}, Court: {court}]"
+    )
+
+    prompt = textwrap.dedent(f"""
+        You are a litigation attorney writing a blog post for a professional
+        audience of litigators. Your writing is clear, precise, and analytically
+        rigorous. Avoid filler phrases. Write in complete paragraphs only.
+
+        Write a blog post about this recent court opinion.
 
         CASE INFORMATION:
-        Case Name:     {case_name}
-        Court:         {court.upper()}
-        Date Filed:    {date_filed}
-        Docket Number: {docket_num}
-        Case URL:      {case_url}
+        Case Name:  {case_name}
+        Court:      {court}
+        Date:       {date_filed}
+        Source URL: {source_url}
 
-        OPINION TEXT (may be truncated):
+        OPINION TEXT (may be truncated or unavailable):
         ---
         {truncated}
         ---
 
         Cover these three sections (400-500 words total):
 
-        1. Background - Parties, alleged conduct, and stage of litigation (2-3 sentences)
-        2. The Court's Holding - What was decided and on what grounds (2-3 sentences)
-        3. Why It Matters - Key legal implications for practitioners, in plain terms (2-3 sentences)
+        1. Background — Parties, what the dispute is about, how it arrived
+           at this court. Two to three sentences.
 
-        End the post with this exact HTML, substituting the real URL:
-        <p class="case-link">Read the full opinion: <a href="{case_url}" target="_blank" rel="noopener">{case_name}</a></p>
+        2. The Court's Holding — What the court decided and on what legal
+           grounds. Be precise. Two to three sentences.
 
-        Use <h3> tags for headers. Use <p> tags for paragraphs.
-        No bullet points. No title inside the body.
+        3. Why It Matters — Practical significance for litigators: does this
+           resolve a circuit split, tighten a pleading standard, affect class
+           certification, change how practitioners should approach similar cases?
+           Two to three sentences.
 
-        Respond ONLY with a valid JSON object, no markdown, no preamble:
+        End with this exact HTML (substitute real values):
+        <p class="case-link">Read the full opinion: <a href="{source_url}" target="_blank" rel="noopener">{case_name}</a></p>
+
+        Use <h3> for section headers. Use <p> for paragraphs. No bullet points.
+        Do not put the title inside the body.
+
+        If the opinion text is unavailable or too truncated to write accurately,
+        still produce the post based on the case name and court — write what can
+        reasonably be inferred and note that the full opinion should be consulted.
+
+        Respond ONLY with valid JSON, no markdown fences, no preamble:
         {{
           "title": "Descriptive headline capturing the legal significance",
-          "court_display": "Short label e.g. S.D.N.Y., 9th Cir., D. Del.",
+          "court_display": "Short court label e.g. 9th Cir., S.D.N.Y., SCOTUS",
           "date_display": "Month DD, YYYY",
-          "summary": "Exactly two sentences: holding and why practitioners should care.",
-          "body_html": "<h3>Background</h3><p>...</p><h3>The Court's Holding</h3><p>...</p><h3>Why It Matters</h3><p>...</p><p class=\"case-link\">Read the full opinion: <a href=\"{case_url}\" target=\"_blank\" rel=\"noopener\">{case_name}</a></p>"
+          "summary": "Two sentences: what was decided and why it matters.",
+          "body_html": "<h3>Background</h3><p>...</p>..."
         }}
     """).strip()
 
@@ -547,14 +791,14 @@ def build_post_with_claude(result: dict, opinion_text: str) -> dict | None:
         return post
 
     except json.JSONDecodeError as e:
-        log(f"Failed to parse Claude JSON: {e}\nRaw:\n{raw[:500]}")
+        log(f"Failed to parse Claude JSON: {e}\nRaw:\n{raw[:400]}")
         return None
     except Exception as e:
         log(f"Anthropic API error: {e}")
         return None
 
 
-# ── HTML injection ────────────────────────────────────────────────────────────
+# ── Stage 5: HTML injection ───────────────────────────────────────────────────
 
 def inject_post_into_html(html: str, post: dict) -> str:
     body_escaped = (
@@ -626,7 +870,7 @@ def inject_post_into_html(html: str, post: dict) -> str:
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    log("Starting build_post.py")
+    log("Starting build_post.py (revised sourcing)")
 
     if not os.path.exists(HTML_PATH):
         log(f"ERROR: {HTML_PATH} not found. Running from repo root?")
@@ -636,31 +880,38 @@ def main():
         html = f.read()
 
     posted_log = load_posted_log()
-    log(f"Duplicate log: {len(posted_log['cluster_ids'])} cluster IDs, "
-        f"{len(posted_log['case_names'])} case names on record")
+    log(f"Posted log: {len(posted_log['titles'])} titles on record")
 
-    results = fetch_search_results()
-    if not results:
-        log("No results from CourtListener search. Exiting.")
+    # Stage 1: gather candidates
+    candidates = gather_all_candidates(posted_log)
+    if not candidates:
+        log("No candidates found from any source. Exiting.")
         return
 
-    result, opinion_text, opinion_id = pick_best(results, posted_log)
-    if result is None:
-        log("No suitable opinion found after filtering. Exiting.")
+    # Stage 2: Claude picks the most significant
+    selected = pick_most_significant(candidates)
+    if not selected:
+        log("Significance scoring returned nothing. Exiting.")
         return
 
-    log(f"Opinion text: {len(opinion_text)} chars")
+    # Stage 3: fetch full text
+    log(f"Stage 3: Fetching full text for: {selected['title'][:70]}")
+    opinion_text = fetch_full_text(selected)
+    log(f"Full text length: {len(opinion_text)} chars")
 
-    post = build_post_with_claude(result, opinion_text)
+    # Stage 4: write the post
+    log("Stage 4: Generating blog post with Claude...")
+    post = build_post_with_claude(selected, opinion_text)
     if not post:
         log("Post generation failed. Exiting.")
         return
 
+    # Stage 5: inject into HTML
     updated_html = inject_post_into_html(html, post)
     with open(HTML_PATH, "w", encoding="utf-8") as f:
         f.write(updated_html)
 
-    posted_log = record_posted(posted_log, result, opinion_id)
+    posted_log = record_posted(posted_log, selected["title"], selected.get("url", ""))
     save_posted_log(posted_log)
 
     log(f"SUCCESS: '{post['title']}'")
