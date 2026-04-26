@@ -787,6 +787,9 @@ def build_post_with_claude(candidate: dict, opinion_text: str) -> dict | None:
         if not required.issubset(post.keys()):
             log(f"Claude response missing keys: {list(post.keys())}")
             return None
+        # Strip any literal newlines Claude included in text fields
+        for field in ("title", "court_display", "date_display", "summary"):
+            post[field] = re.sub(r"[\r\n]+", " ", post[field]).strip()
         log(f"Post generated: {post['title'][:80]}")
         return post
 
@@ -800,15 +803,27 @@ def build_post_with_claude(candidate: dict, opinion_text: str) -> dict | None:
 
 # ── Stage 5: HTML injection ───────────────────────────────────────────────────
 
+def clean_text(s: str) -> str:
+    """Strip newlines and extra whitespace from a string for safe HTML/JS embedding."""
+    s = re.sub(r"[\r\n]+", " ", s)
+    s = re.sub(r"\s{2,}", " ", s)
+    return s.strip()
+
+
 def inject_post_into_html(html: str, post: dict) -> str:
+    # Sanitize all text fields — remove any literal newlines Claude may have included
+    body_clean = clean_text(post["body_html"])
+    # Restore block-level tags so they stay on their own lines for readability
+    body_clean = re.sub(r"\s*(</?h[1-6]>|</?p>|</?li>|</?ul>|</?ol>)", r"\1", body_clean)
+
     body_escaped = (
-        post["body_html"]
+        body_clean
         .replace("\\", "\\\\")
         .replace("`", "\\`")
         .replace("${", "\\${")
     )
-    title_safe   = post["title"].replace('"', "'")
-    summary_safe = post["summary"].replace('"', "'")
+    title_safe   = clean_text(post["title"]).replace('"', "'")
+    summary_safe = clean_text(post["summary"]).replace('"', "'")
 
     new_js = (
         "      {\n"
