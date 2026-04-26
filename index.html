@@ -1,0 +1,1126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>M Legal Technology</title>
+  <meta name="description" content="A personal site about how litigators can use AI for tasks big and small." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --surface: #ffffff;
+      --ink: #0f172a;
+      --muted: #475569;
+      --line: #d8e2f0;
+      --blue-1: #0f3d91;
+      --blue-2: #1d5fd1;
+      --blue-3: #dce8ff;
+      --max: 1080px;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(29, 95, 209, 0.07), transparent 30%),
+        linear-gradient(180deg, #f8fbff 0%, var(--bg) 100%);
+      line-height: 1.55;
+    }
+
+    a, button { color: inherit; text-decoration: none; font: inherit; }
+    button { background: none; border: 0; padding: 0; }
+
+    .container {
+      width: min(calc(100% - 2rem), var(--max));
+      margin: 0 auto;
+    }
+
+    /* ── HEADER ── */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      backdrop-filter: blur(10px);
+      background: rgba(248, 251, 255, 0.92);
+      border-bottom: 1px solid rgba(216, 226, 240, 0.9);
+    }
+
+    .header-inner {
+      min-height: 78px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      padding: 1.5rem 0 1.1rem;
+      text-align: center;
+    }
+
+    .brand {
+      display: flex;
+      align-items: baseline;
+      justify-content: center;
+      gap: 0.7rem;
+      letter-spacing: 0.02em;
+      white-space: nowrap;
+    }
+
+    .brand-mark {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(3.3rem, 6vw, 5rem);
+      font-weight: 800;
+      color: var(--blue-1);
+      line-height: 1;
+    }
+
+    .brand-text {
+      font-family: 'DM Sans', sans-serif;
+      font-size: clamp(1.6rem, 2.8vw, 2.2rem);
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: -0.01em;
+    }
+
+    .tab-nav {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .tab-link {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 148px;
+      padding: 0.8rem 1rem;
+      border: 1px solid #bfd2fb;
+      background: linear-gradient(180deg, #edf4ff 0%, #dce8ff 100%);
+      color: var(--blue-1);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      box-shadow: 0 10px 24px rgba(15, 61, 145, 0.08);
+      cursor: pointer;
+      transition: background 160ms ease, color 160ms ease, border-color 160ms ease, transform 160ms ease;
+    }
+
+    .tab-link:hover, .tab-link.active {
+      color: #ffffff;
+      background: linear-gradient(160deg, var(--blue-1) 0%, var(--blue-2) 100%);
+      border-color: rgba(15, 61, 145, 0.9);
+      transform: translateY(-1px);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── PANELS ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+    }
+
+    .panel-blue {
+      background: linear-gradient(160deg, var(--blue-1) 0%, var(--blue-2) 100%);
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .panel-inner { padding: clamp(1.4rem, 3vw, 2.5rem); }
+
+    h1, h2, h3, p { margin-top: 0; }
+
+    /* ── HOME ── */
+    .hero-anim-panel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #060d1a;
+      border: 1px solid rgba(0,212,255,0.12);
+      box-shadow: 0 18px 45px rgba(0,0,0,0.4);
+      overflow: hidden;
+      min-height: 280px;
+    }
+    .hero { padding: 5.5rem 0 2rem; }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 1.25rem;
+      align-items: stretch;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      line-height: 0.98;
+      letter-spacing: -0.02em;
+      margin-bottom: 1rem;
+      max-width: 10ch;
+    }
+
+    .hero-copy {
+      font-size: 1.08rem;
+      max-width: 48ch;
+      color: rgba(255, 255, 255, 0.9);
+      margin-bottom: 0;
+    }
+
+    .hero-stack { display: grid; gap: 1.25rem; }
+    .metric { min-height: 100%; }
+    .metric p { font-size: 1.05rem; font-weight: 400; line-height: 1.5; margin-bottom: 0; }
+
+    /* ── SECTION SHARED ── */
+    .section { padding: 2.2rem 0 5rem; }
+
+    .section-grid {
+      display: grid;
+      grid-template-columns: 0.9fr 1.1fr;
+      gap: 1.25rem;
+      align-items: start;
+    }
+
+    .section-label {
+      background: var(--blue-3);
+      border: 1px solid #bfd2fb;
+      color: var(--blue-1);
+    }
+
+    .eyebrow {
+      display: inline-block;
+      margin-bottom: 1rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      opacity: 0.75;
+    }
+
+    .section-label h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(1.5rem, 3vw, 2.2rem);
+      line-height: 1.05;
+      margin-bottom: 0;
+      letter-spacing: -0.01em;
+    }
+
+    .about-box { background: #ffffff; }
+    .about-box p { font-size: 1.03rem; color: var(--ink); margin-bottom: 1rem; }
+    .about-box p:last-child { margin-bottom: 0; }
+
+    /* ── THOUGHTS ── */
+    .essay-title {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(1.55rem, 3vw, 2.2rem);
+      line-height: 1.08;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.25rem;
+      color: var(--blue-1);
+    }
+
+    /* ── TOOLS TAB ── */
+    .tools-intro-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.25rem;
+      margin-top: 2rem;
+    }
+
+    .tools-setup-panel { margin-top: 1.25rem; }
+
+    .setup-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem 2.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .setup-step { display: flex; gap: 1rem; align-items: flex-start; }
+
+    .setup-num {
+      flex-shrink: 0;
+      width: 2rem;
+      height: 2rem;
+      background: linear-gradient(160deg, var(--blue-1) 0%, var(--blue-2) 100%);
+      color: white;
+      font-size: 0.85rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 0.1rem;
+    }
+
+    .setup-step strong { display: block; font-size: 0.95rem; font-weight: 700; color: var(--ink); margin-bottom: 0.3rem; }
+    .setup-step p { font-size: 0.9rem; color: var(--muted); margin: 0; line-height: 1.55; }
+    .setup-step a { color: var(--blue-2); text-decoration: underline; }
+
+    code {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 0.85em;
+      background: #eef3fb;
+      border: 1px solid #d0ddf5;
+      color: var(--blue-1);
+      padding: 0.1em 0.4em;
+    }
+
+    .tool-deps { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.1rem; line-height: 1.6; }
+    .deps-label { font-weight: 700; color: var(--ink); margin-right: 0.3rem; }
+
+    /* ── BLOG DISCLAIMER ── */
+    .blog-disclaimer {
+      margin: 1rem 0;
+      padding: 1rem 1.25rem;
+      background: #fff8e6;
+      border: 1px solid #f0d080;
+      border-left: 4px solid #e6a800;
+      font-size: 0.92rem;
+      color: var(--ink);
+      line-height: 1.6;
+    }
+
+    .blog-disclaimer strong {
+      color: #7a5500;
+    }
+
+    /* ── BLOG COMING SOON ── */
+    .blog-coming-soon { margin-top: 2.5rem; padding-bottom: 5rem; }
+
+    .coming-soon-inner {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      padding: 4rem 3rem;
+      text-align: center;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+
+    .coming-soon-icon { font-size: 2.5rem; margin-bottom: 1rem; opacity: 0.35; }
+
+    .coming-soon-inner h3 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.5rem;
+      color: var(--ink);
+      margin-bottom: 0.75rem;
+    }
+
+    .coming-soon-inner p {
+      font-size: 1rem;
+      color: var(--muted);
+      max-width: 40ch;
+      margin: 0 auto;
+      line-height: 1.65;
+    }
+
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 1.25rem;
+      margin-top: 2rem;
+    }
+
+    .tool-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      transition: transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .tool-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 16px 40px rgba(15, 61, 145, 0.12);
+    }
+
+    .tool-card-inner { padding: 1.6rem 1.8rem; }
+
+    .tool-tag {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--blue-1);
+      background: var(--blue-3);
+      border: 1px solid #bfd2fb;
+      padding: 0.2rem 0.55rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .tool-card h3 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.2rem;
+      line-height: 1.2;
+      margin-bottom: 0.6rem;
+      color: var(--ink);
+    }
+
+    .tool-card p {
+      font-size: 0.93rem;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+      line-height: 1.5;
+    }
+
+    .download-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--blue-1);
+      border: 1px solid var(--blue-1);
+      padding: 0.5rem 0.9rem;
+      transition: background 160ms, color 160ms;
+      cursor: pointer;
+    }
+
+    .download-btn:hover {
+      background: var(--blue-1);
+      color: white;
+    }
+
+    .download-btn svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+    }
+
+    .tools-intro {
+      max-width: 680px;
+      font-size: 1.05rem;
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    .tools-header {
+      padding: 4rem 0 0;
+    }
+
+    .tools-header h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── BLOG TAB ── */
+    .blog-header { padding: 4rem 0 0; }
+
+    .blog-header h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+    }
+
+    .blog-intro {
+      max-width: none;
+      font-size: 1.05rem;
+      color: var(--muted);
+      margin-bottom: 0;
+    }
+
+    .blog-list {
+      margin-top: 2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      padding-bottom: 5rem;
+    }
+
+    .blog-card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+      transition: transform 180ms ease, box-shadow 180ms ease;
+      cursor: pointer;
+    }
+
+    .blog-card:hover { transform: translateY(-2px); box-shadow: 0 16px 40px rgba(15, 61, 145, 0.1); }
+
+    .blog-card-inner {
+      padding: 1.8rem 2rem;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 1rem;
+      align-items: start;
+    }
+
+    .blog-card-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    .blog-date {
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .blog-badge {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--blue-1);
+      background: var(--blue-3);
+      border: 1px solid #bfd2fb;
+      padding: 0.15rem 0.5rem;
+    }
+
+    .blog-card h3 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(1.1rem, 2vw, 1.4rem);
+      line-height: 1.2;
+      margin-bottom: 0.6rem;
+      color: var(--ink);
+    }
+
+    .blog-card p {
+      font-size: 0.95rem;
+      color: var(--muted);
+      margin-bottom: 0;
+      line-height: 1.55;
+      max-width: 70ch;
+    }
+
+    .blog-arrow {
+      color: var(--blue-1);
+      font-size: 1.5rem;
+      line-height: 1;
+      padding-top: 0.2rem;
+      opacity: 0.5;
+      transition: opacity 160ms, transform 160ms;
+    }
+
+    .blog-card:hover .blog-arrow { opacity: 1; transform: translateX(3px); }
+
+    /* Blog post expanded view */
+    .blog-post-view { display: none; padding-bottom: 5rem; }
+    .blog-post-view.active { display: block; }
+    .blog-list-view { }
+    .blog-list-view.hidden { display: none; }
+
+    .post-back {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--blue-1);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+      cursor: pointer;
+      padding: 0.5rem 0;
+      border: none;
+      background: none;
+    }
+
+    .post-back:hover { opacity: 0.7; }
+
+    .post-header { margin-bottom: 2rem; }
+
+    /* Prevent whitespace in dynamically injected HTML from rendering as line breaks */
+    .post-header h2,
+    .blog-card h3,
+    .blog-card p,
+    .blog-intro {
+      white-space: normal;
+      word-wrap: break-word;
+    }
+
+    .blog-card-meta {
+      white-space: nowrap;
+      flex-wrap: wrap;
+    }
+
+    .post-header h2 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(1.8rem, 4vw, 3rem);
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+      color: var(--ink);
+    }
+
+    .post-body {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.06);
+    }
+
+    .post-body-inner {
+      padding: clamp(1.6rem, 4vw, 3rem);
+      max-width: 75ch;
+    }
+
+    .post-body-inner p {
+      font-size: 1.05rem;
+      line-height: 1.75;
+      color: var(--ink);
+      margin-bottom: 1.4rem;
+    }
+
+    .post-body-inner p:last-child { margin-bottom: 0; }
+
+    .case-link {
+      margin-top: 2rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--line);
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    .case-link a {
+      color: var(--blue-1);
+      text-decoration: underline;
+    }
+
+    .post-body-inner h3 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: 1.35rem;
+      color: var(--blue-1);
+      margin-top: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    /* ── FOOTER ── */
+    .footer {
+      padding: 1.5rem 0 3rem;
+      color: var(--muted);
+      font-size: 0.88rem;
+      border-top: 1px solid var(--line);
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 860px) {
+      .hero-grid, .section-grid, .tools-intro-grid, .setup-grid { grid-template-columns: 1fr; }
+      .hero-anim-panel { min-height: 220px; }
+      .header-inner { min-height: auto; padding: 1rem 0; }
+      .tab-nav { width: 100%; }
+      .tab-link { min-width: 0; flex: 1 1 120px; font-size: 0.75rem; }
+      .hero { padding-top: 3rem; }
+      h1 { max-width: none; }
+      .blog-card-inner { grid-template-columns: 1fr; }
+      .blog-arrow { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="#top" aria-label="M Legal Technology home">
+        <span class="brand-mark">M</span>
+        <span class="brand-text">Legal Technology</span>
+      </a>
+      <nav class="tab-nav" aria-label="Primary">
+        <button class="tab-link active" type="button" data-tab="home" aria-selected="true">Home</button>
+        <button class="tab-link" type="button" data-tab="tools" aria-selected="false">Tools</button>
+        <button class="tab-link" type="button" data-tab="blog" aria-selected="false">Blog</button>
+        <button class="tab-link" type="button" data-tab="thoughts" aria-selected="false">Thoughts</button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- ═══════════ HOME ═══════════ -->
+    <section class="tab-panel active" data-panel="home">
+      <section class="hero">
+        <div class="container hero-grid">
+          <article class="panel panel-blue">
+            <div class="panel-inner">
+              <h1>AI for litigators.</h1>
+              <p class="hero-copy">
+                Focused thoughts, practical tools, and plain-language guidance on how AI can help litigators with work that matters.
+              </p>
+            </div>
+          </article>
+          <div class="hero-anim-panel">
+            <svg width="100%" viewBox="0 0 680 480" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>Global technology network animation</title>
+<desc>Animated network of nodes on a dark background representing worldwide connected intelligent technology</desc>
+<defs>
+  <radialGradient id="bg" cx="50%" cy="50%" r="55%">
+    <stop offset="0%" stop-color="#0d1f3c"/>
+    <stop offset="100%" stop-color="#060d1a"/>
+  </radialGradient>
+  <radialGradient id="glow1" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#00d4ff" stop-opacity="1"/>
+    <stop offset="100%" stop-color="#0066cc" stop-opacity="0.4"/>
+  </radialGradient>
+  <radialGradient id="glow2" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#7c3aed" stop-opacity="1"/>
+    <stop offset="100%" stop-color="#4c1d95" stop-opacity="0.4"/>
+  </radialGradient>
+  <radialGradient id="glow3" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#10b981" stop-opacity="1"/>
+    <stop offset="100%" stop-color="#065f46" stop-opacity="0.4"/>
+  </radialGradient>
+  <radialGradient id="glowAmb" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#f59e0b" stop-opacity="1"/>
+    <stop offset="100%" stop-color="#92400e" stop-opacity="0.3"/>
+  </radialGradient>
+  <radialGradient id="hub" cx="50%" cy="50%" r="50%">
+    <stop offset="0%" stop-color="#ffffff" stop-opacity="1"/>
+    <stop offset="40%" stop-color="#00d4ff" stop-opacity="0.9"/>
+    <stop offset="100%" stop-color="#0066cc" stop-opacity="0.5"/>
+  </radialGradient>
+  <radialGradient id="bgGlow" cx="50%" cy="50%" r="40%">
+    <stop offset="0%" stop-color="#0a3060" stop-opacity="0.6"/>
+    <stop offset="100%" stop-color="#060d1a" stop-opacity="0"/>
+  </radialGradient>
+</defs>
+<style>
+  @keyframes nb{0%,100%{opacity:0.85}50%{opacity:1}}
+  @keyframes nbHub{0%,100%{r:9}50%{r:11}}
+  @keyframes nbMed{0%,100%{r:5}50%{r:6.5}}
+  @keyframes nbSm{0%,100%{r:3}50%{r:4}}
+  @keyframes ringOut{0%{r:10;opacity:0.8;stroke-width:2}100%{r:35;opacity:0;stroke-width:0.3}}
+  @keyframes ringOut2{0%{r:7;opacity:0.6;stroke-width:1.5}100%{r:28;opacity:0;stroke-width:0.2}}
+  @keyframes ringOutSm{0%{r:4;opacity:0.5;stroke-width:1}100%{r:18;opacity:0;stroke-width:0.2}}
+  @keyframes connFade{0%,100%{opacity:0}25%,75%{opacity:1}}
+  @keyframes gpulse{0%{opacity:0;stroke-dashoffset:300}10%{opacity:0.9}85%{opacity:0.9}100%{opacity:0;stroke-dashoffset:0}}
+  @keyframes gdot{0%{opacity:0}8%{opacity:1}88%{opacity:1}100%{opacity:0}}
+  @keyframes starTwinkle{0%,100%{opacity:0.2}50%{opacity:0.8}}
+</style>
+<rect width="680" height="480" fill="url(#bg)" rx="0"/>
+<ellipse cx="340" cy="240" rx="180" ry="160" fill="url(#bgGlow)"/>
+<circle cx="82" cy="47" r="0.8" fill="#ffffff" style="animation:starTwinkle 2.1s ease-in-out infinite 0.3s"/>
+<circle cx="151" cy="31" r="1.1" fill="#ffffff" style="animation:starTwinkle 3.2s ease-in-out infinite 0.8s"/>
+<circle cx="234" cy="58" r="0.7" fill="#ffffff" style="animation:starTwinkle 2.7s ease-in-out infinite 1.4s"/>
+<circle cx="398" cy="22" r="1.0" fill="#ffffff" style="animation:starTwinkle 2.3s ease-in-out infinite 0.1s"/>
+<circle cx="512" cy="44" r="0.8" fill="#ffffff" style="animation:starTwinkle 3.5s ease-in-out infinite 1.9s"/>
+<circle cx="601" cy="29" r="1.2" fill="#ffffff" style="animation:starTwinkle 2.8s ease-in-out infinite 0.6s"/>
+<circle cx="648" cy="72" r="0.7" fill="#ffffff" style="animation:starTwinkle 3.1s ease-in-out infinite 2.3s"/>
+<circle cx="55" cy="118" r="0.9" fill="#ffffff" style="animation:starTwinkle 2.5s ease-in-out infinite 1.1s"/>
+<circle cx="630" cy="155" r="0.8" fill="#ffffff" style="animation:starTwinkle 2.9s ease-in-out infinite 0.4s"/>
+<circle cx="48" cy="380" r="1.0" fill="#ffffff" style="animation:starTwinkle 3.3s ease-in-out infinite 1.7s"/>
+<circle cx="620" cy="410" r="0.8" fill="#ffffff" style="animation:starTwinkle 2.4s ease-in-out infinite 2.1s"/>
+<circle cx="110" cy="445" r="0.7" fill="#ffffff" style="animation:starTwinkle 3.0s ease-in-out infinite 0.9s"/>
+<circle cx="560" cy="462" r="1.1" fill="#ffffff" style="animation:starTwinkle 2.6s ease-in-out infinite 1.5s"/>
+<circle cx="340" cy="18" r="0.9" fill="#00d4ff" style="animation:starTwinkle 2.2s ease-in-out infinite 0.7s"/>
+<circle cx="660" cy="320" r="0.8" fill="#7c3aed" style="animation:starTwinkle 3.4s ease-in-out infinite 1.2s"/>
+<ellipse cx="340" cy="240" rx="210" ry="210" fill="none" stroke="#1a3a6e" stroke-width="0.4" opacity="0.5"/>
+<ellipse cx="340" cy="240" rx="210" ry="46" fill="none" stroke="#1a3a6e" stroke-width="0.3" opacity="0.4"/>
+<ellipse cx="340" cy="195" rx="200" ry="40" fill="none" stroke="#1a3a6e" stroke-width="0.3" opacity="0.3"/>
+<ellipse cx="340" cy="285" rx="200" ry="40" fill="none" stroke="#1a3a6e" stroke-width="0.3" opacity="0.3"/>
+<ellipse cx="340" cy="148" rx="178" ry="34" fill="none" stroke="#1a3a6e" stroke-width="0.3" opacity="0.25"/>
+<ellipse cx="340" cy="332" rx="178" ry="34" fill="none" stroke="#1a3a6e" stroke-width="0.3" opacity="0.25"/>
+<path d="M340 30 Q362 140 340 450" fill="none" stroke="#1a3a6e" stroke-width="0.3" opacity="0.3"/>
+<path d="M340 30 Q318 140 340 450" fill="none" stroke="#1a3a6e" stroke-width="0.3" opacity="0.3"/>
+<path d="M340 35 Q420 140 390 448" fill="none" stroke="#1a3a6e" stroke-width="0.3" opacity="0.2"/>
+<path d="M340 35 Q260 140 290 448" fill="none" stroke="#1a3a6e" stroke-width="0.3" opacity="0.2"/>
+<g opacity="0.3">
+  <line x1="340" y1="240" x2="195" y2="165" stroke="#00d4ff" stroke-width="0.6" style="animation:connFade 4.2s ease-in-out infinite 0s"/>
+  <line x1="340" y1="240" x2="485" y2="165" stroke="#00d4ff" stroke-width="0.6" style="animation:connFade 4.2s ease-in-out infinite 0.7s"/>
+  <line x1="340" y1="240" x2="160" y2="280" stroke="#7c3aed" stroke-width="0.6" style="animation:connFade 4.5s ease-in-out infinite 1.4s"/>
+  <line x1="340" y1="240" x2="520" y2="280" stroke="#7c3aed" stroke-width="0.6" style="animation:connFade 4.5s ease-in-out infinite 0.4s"/>
+  <line x1="340" y1="240" x2="248" y2="128" stroke="#10b981" stroke-width="0.5" style="animation:connFade 5s ease-in-out infinite 1.1s"/>
+  <line x1="340" y1="240" x2="432" y2="128" stroke="#10b981" stroke-width="0.5" style="animation:connFade 5s ease-in-out infinite 1.8s"/>
+  <line x1="340" y1="240" x2="248" y2="352" stroke="#f59e0b" stroke-width="0.5" style="animation:connFade 4.8s ease-in-out infinite 2.2s"/>
+  <line x1="340" y1="240" x2="432" y2="352" stroke="#f59e0b" stroke-width="0.5" style="animation:connFade 4.8s ease-in-out infinite 0.9s"/>
+  <line x1="195" y1="165" x2="248" y2="128" stroke="#00d4ff" stroke-width="0.4" style="animation:connFade 3.8s ease-in-out infinite 0.5s"/>
+  <line x1="485" y1="165" x2="432" y2="128" stroke="#00d4ff" stroke-width="0.4" style="animation:connFade 3.8s ease-in-out infinite 1.2s"/>
+  <line x1="160" y1="280" x2="130" y2="240" stroke="#7c3aed" stroke-width="0.4" style="animation:connFade 3.5s ease-in-out infinite 2.0s"/>
+  <line x1="520" y1="280" x2="550" y2="240" stroke="#7c3aed" stroke-width="0.4" style="animation:connFade 3.5s ease-in-out infinite 0.3s"/>
+  <line x1="248" y1="128" x2="300" y2="88" stroke="#10b981" stroke-width="0.4" style="animation:connFade 4s ease-in-out infinite 1.6s"/>
+  <line x1="432" y1="128" x2="380" y2="88" stroke="#10b981" stroke-width="0.4" style="animation:connFade 4s ease-in-out infinite 0.8s"/>
+  <line x1="248" y1="352" x2="300" y2="392" stroke="#f59e0b" stroke-width="0.35" style="animation:connFade 3.6s ease-in-out infinite 1.9s"/>
+  <line x1="432" y1="352" x2="380" y2="392" stroke="#f59e0b" stroke-width="0.35" style="animation:connFade 3.6s ease-in-out infinite 0.6s"/>
+</g>
+<g fill="none">
+  <line x1="340" y1="240" x2="195" y2="165" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="220" stroke-dashoffset="220" style="animation:gpulse 3.8s ease-in-out infinite 0s"/>
+  <line x1="340" y1="240" x2="485" y2="165" stroke="#00d4ff" stroke-width="1.5" stroke-dasharray="220" stroke-dashoffset="220" style="animation:gpulse 3.8s ease-in-out infinite 1.0s"/>
+  <line x1="340" y1="240" x2="160" y2="280" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="240" stroke-dashoffset="240" style="animation:gpulse 4.2s ease-in-out infinite 2.0s"/>
+  <line x1="340" y1="240" x2="520" y2="280" stroke="#7c3aed" stroke-width="1.5" stroke-dasharray="240" stroke-dashoffset="240" style="animation:gpulse 4.2s ease-in-out infinite 0.5s"/>
+  <line x1="340" y1="240" x2="248" y2="128" stroke="#10b981" stroke-width="1.2" stroke-dasharray="180" stroke-dashoffset="180" style="animation:gpulse 3.5s ease-in-out infinite 1.5s"/>
+  <line x1="340" y1="240" x2="432" y2="128" stroke="#10b981" stroke-width="1.2" stroke-dasharray="180" stroke-dashoffset="180" style="animation:gpulse 3.5s ease-in-out infinite 2.8s"/>
+  <line x1="195" y1="165" x2="248" y2="128" stroke="#00d4ff" stroke-width="1.0" stroke-dasharray="90" stroke-dashoffset="90" style="animation:gpulse 2.8s ease-in-out infinite 3.2s"/>
+  <line x1="485" y1="165" x2="432" y2="128" stroke="#10b981" stroke-width="1.0" stroke-dasharray="90" stroke-dashoffset="90" style="animation:gpulse 2.8s ease-in-out infinite 0.8s"/>
+  <line x1="248" y1="352" x2="300" y2="392" stroke="#f59e0b" stroke-width="1.0" stroke-dasharray="80" stroke-dashoffset="80" style="animation:gpulse 2.6s ease-in-out infinite 2.1s"/>
+  <line x1="432" y1="352" x2="380" y2="392" stroke="#f59e0b" stroke-width="1.0" stroke-dasharray="80" stroke-dashoffset="80" style="animation:gpulse 2.6s ease-in-out infinite 1.3s"/>
+</g>
+<circle r="4" fill="#00d4ff" opacity="0" style="animation:gdot 3.8s ease-in-out infinite 0s"><animateMotion dur="3.8s" repeatCount="indefinite" begin="0s"><mpath href="#gp1"/></animateMotion></circle>
+<path id="gp1" d="M340,240 L195,165" fill="none"/>
+<circle r="4" fill="#00d4ff" opacity="0" style="animation:gdot 3.8s ease-in-out infinite 1.0s"><animateMotion dur="3.8s" repeatCount="indefinite" begin="1.0s"><mpath href="#gp2"/></animateMotion></circle>
+<path id="gp2" d="M485,165 L340,240" fill="none"/>
+<circle r="4" fill="#a855f7" opacity="0" style="animation:gdot 4.2s ease-in-out infinite 2.0s"><animateMotion dur="4.2s" repeatCount="indefinite" begin="2.0s"><mpath href="#gp3"/></animateMotion></circle>
+<path id="gp3" d="M340,240 L160,280" fill="none"/>
+<circle r="4" fill="#a855f7" opacity="0" style="animation:gdot 4.2s ease-in-out infinite 0.5s"><animateMotion dur="4.2s" repeatCount="indefinite" begin="0.5s"><mpath href="#gp4"/></animateMotion></circle>
+<path id="gp4" d="M520,280 L340,240" fill="none"/>
+<circle r="3.5" fill="#34d399" opacity="0" style="animation:gdot 3.5s ease-in-out infinite 1.5s"><animateMotion dur="3.5s" repeatCount="indefinite" begin="1.5s"><mpath href="#gp5"/></animateMotion></circle>
+<path id="gp5" d="M340,240 L248,128" fill="none"/>
+<circle r="3.5" fill="#34d399" opacity="0" style="animation:gdot 3.5s ease-in-out infinite 2.8s"><animateMotion dur="3.5s" repeatCount="indefinite" begin="2.8s"><mpath href="#gp6"/></animateMotion></circle>
+<path id="gp6" d="M432,128 L340,240" fill="none"/>
+<circle r="3" fill="#fbbf24" opacity="0" style="animation:gdot 2.6s ease-in-out infinite 2.1s"><animateMotion dur="2.6s" repeatCount="indefinite" begin="2.1s"><mpath href="#gp7"/></animateMotion></circle>
+<path id="gp7" d="M248,352 L300,392" fill="none"/>
+<circle r="3" fill="#fbbf24" opacity="0" style="animation:gdot 2.6s ease-in-out infinite 0.9s"><animateMotion dur="2.6s" repeatCount="indefinite" begin="0.9s"><mpath href="#gp8"/></animateMotion></circle>
+<path id="gp8" d="M380,392 L432,352" fill="none"/>
+<circle cx="340" cy="240" r="40" fill="none" stroke="#00d4ff" stroke-width="0.3" opacity="0.15" style="animation:ringOut 3.5s ease-out infinite 0s"/>
+<circle cx="340" cy="240" r="35" fill="none" stroke="#00d4ff" stroke-width="0.3" opacity="0.12" style="animation:ringOut 3.5s ease-out infinite 1.4s"/>
+<circle cx="340" cy="240" r="9" fill="url(#hub)" style="animation:nbHub 3s ease-in-out infinite"/>
+<circle cx="340" cy="240" r="18" fill="none" stroke="#00d4ff" stroke-width="1.5" opacity="0" style="animation:ringOut 3s ease-out infinite 0s"/>
+<circle cx="340" cy="240" r="14" fill="none" stroke="#ffffff" stroke-width="1" opacity="0" style="animation:ringOut 3s ease-out infinite 1.0s"/>
+<circle cx="195" cy="165" r="5.5" fill="url(#glow1)" style="animation:nbMed 3.1s ease-in-out infinite 0.4s"/>
+<circle cx="195" cy="165" r="11" fill="none" stroke="#00d4ff" stroke-width="1.2" opacity="0" style="animation:ringOut2 2.8s ease-out infinite 0.6s"/>
+<circle cx="485" cy="165" r="5.5" fill="url(#glow2)" style="animation:nbMed 2.9s ease-in-out infinite 0.8s"/>
+<circle cx="485" cy="165" r="11" fill="none" stroke="#7c3aed" stroke-width="1.2" opacity="0" style="animation:ringOut2 2.8s ease-out infinite 2.0s"/>
+<circle cx="160" cy="280" r="5" fill="url(#glow2)" style="animation:nbMed 3.3s ease-in-out infinite 1.2s"/>
+<circle cx="160" cy="280" r="10" fill="none" stroke="#7c3aed" stroke-width="1" opacity="0" style="animation:ringOut2 3s ease-out infinite 1.5s"/>
+<circle cx="520" cy="280" r="5" fill="url(#glow1)" style="animation:nbMed 3.0s ease-in-out infinite 0.6s"/>
+<circle cx="520" cy="280" r="10" fill="none" stroke="#00d4ff" stroke-width="1" opacity="0" style="animation:ringOut2 3s ease-out infinite 0.4s"/>
+<circle cx="248" cy="128" r="4.5" fill="url(#glow3)" style="animation:nbSm 2.8s ease-in-out infinite 1.0s"/>
+<circle cx="248" cy="128" r="9" fill="none" stroke="#10b981" stroke-width="0.8" opacity="0" style="animation:ringOutSm 2.6s ease-out infinite 1.2s"/>
+<circle cx="432" cy="128" r="4.5" fill="url(#glow3)" style="animation:nbSm 3.2s ease-in-out infinite 0.3s"/>
+<circle cx="432" cy="128" r="9" fill="none" stroke="#10b981" stroke-width="0.8" opacity="0" style="animation:ringOutSm 2.6s ease-out infinite 2.5s"/>
+<circle cx="248" cy="352" r="4" fill="url(#glowAmb)" style="animation:nbSm 2.9s ease-in-out infinite 1.6s"/>
+<circle cx="248" cy="352" r="8" fill="none" stroke="#f59e0b" stroke-width="0.8" opacity="0" style="animation:ringOutSm 2.4s ease-out infinite 0.8s"/>
+<circle cx="432" cy="352" r="4" fill="url(#glowAmb)" style="animation:nbSm 3.1s ease-in-out infinite 0.7s"/>
+<circle cx="432" cy="352" r="8" fill="none" stroke="#f59e0b" stroke-width="0.8" opacity="0" style="animation:ringOutSm 2.4s ease-out infinite 2.0s"/>
+<circle cx="300" cy="88" r="3" fill="url(#glow3)" style="animation:nbSm 3.0s ease-in-out infinite 1.9s"/>
+<circle cx="380" cy="88" r="3" fill="url(#glow1)" style="animation:nbSm 2.7s ease-in-out infinite 0.5s"/>
+<circle cx="300" cy="392" r="3" fill="url(#glowAmb)" style="animation:nbSm 3.3s ease-in-out infinite 1.3s"/>
+<circle cx="380" cy="392" r="3" fill="url(#glowAmb)" style="animation:nbSm 2.8s ease-in-out infinite 2.2s"/>
+<circle cx="130" cy="240" r="3" fill="url(#glow2)" style="animation:nbSm 3.1s ease-in-out infinite 0.9s"/>
+<circle cx="550" cy="240" r="3" fill="url(#glow1)" style="animation:nbSm 2.9s ease-in-out infinite 1.7s"/>
+<circle cx="160" cy="200" r="2.5" fill="#00d4ff" opacity="0.7" style="animation:nbSm 3.4s ease-in-out infinite 2.4s"/>
+<circle cx="520" cy="200" r="2.5" fill="#7c3aed" opacity="0.7" style="animation:nbSm 2.6s ease-in-out infinite 0.2s"/>
+</svg>
+          </div>
+        </div>
+        <div class="container" style="margin-top:1.25rem;">
+          <article class="panel metric">
+            <div class="panel-inner">
+              <p>This is a personal site for sharing thoughts, tips, and tools. It does not provide legal advice and is not associated with any law firm or company.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </section>
+
+    <!-- ═══════════ TOOLS ═══════════ -->
+    <section class="tab-panel" data-panel="tools">
+      <div class="container">
+        <div class="tools-header">
+          <h2 style="text-align:center;">Vibe Coded Python Tools for Litigation</h2>
+        </div>
+
+        <!-- INTRO PANELS -->
+        <div class="tools-intro-grid">
+
+          <div class="panel tools-intro-panel">
+            <div class="panel-inner">
+              <span class="eyebrow" style="color:var(--blue-1);background:var(--blue-3);border:1px solid #bfd2fb;padding:0.2rem 0.55rem;font-size:0.72rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:1rem;display:inline-block;">Why Python?</span>
+              <p style="font-size:1.05rem;color:var(--ink);margin-bottom:1rem;">Most litigation software is expensive, locked down, and built for the average case. Python tools are the opposite: free, customizable, and designed to do exactly what you need — nothing more. A Python script is just a set of instructions your computer follows. When wrapped in a graphical interface, it looks and feels like any other desktop application. No browser, no cloud, no subscription.</p>
+              <p style="font-size:1.05rem;color:var(--ink);margin-bottom:0;">The tools on this page handle tasks that would otherwise fall to a paralegal or a vendor: stamping a production, splitting a multi-document PDF, reviewing a deposition transcript alongside exhibits, or tracking deadlines across a docket. They run locally on your machine, which means your client files never leave your computer.</p>
+            </div>
+          </div>
+
+          <div class="panel tools-intro-panel panel-blue">
+            <div class="panel-inner">
+              <span class="eyebrow" style="color:rgba(255,255,255,0.7);font-size:0.72rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:1rem;display:inline-block;">AI Writes the Code</span>
+              <p style="font-size:1.05rem;color:rgba(255,255,255,0.92);margin-bottom:1rem;">Every tool on this page was written by an AI — specifically, by describing a litigation workflow problem to Claude or ChatGPT and asking it to build a solution. No programming background required. The process looks like this: you describe what you want ("I need a tool that stamps Bates numbers on a folder of PDFs and generates a production log"), and the AI produces working code.</p>
+              <p style="font-size:1.05rem;color:rgba(255,255,255,0.85);margin-bottom:0;">You can modify, extend, or rebuild any of these tools the same way — just paste the code back into an AI chat and describe what you want to change. This is what it means to use AI for leverage: not replacing judgment, but eliminating the parts of practice that are purely mechanical.</p>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- SETUP PANEL -->
+        <div class="panel tools-setup-panel">
+          <div class="panel-inner">
+            <span class="eyebrow" style="color:var(--blue-1);background:var(--blue-3);border:1px solid #bfd2fb;padding:0.2rem 0.55rem;font-size:0.72rem;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:1rem;display:inline-block;">Getting Started: What You Need</span>
+            <div class="setup-grid">
+              <div class="setup-step">
+                <div class="setup-num">1</div>
+                <div>
+                  <strong>Install Python</strong>
+                  <p>Download Python 3 from <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">python.org</a>. During installation, check the box that says <em>"Add Python to PATH"</em> — this is important. Python is free and takes about two minutes to install.</p>
+                </div>
+              </div>
+              <div class="setup-step">
+                <div class="setup-num">2</div>
+                <div>
+                  <strong>Install the required libraries</strong>
+                  <p>Each tool below lists the libraries it needs. Open PowerShell (Windows) or Terminal (Mac), and run the install command shown. For example: <code>python -m pip install pymupdf Pillow</code>. This is a one-time step per library.</p>
+                </div>
+              </div>
+              <div class="setup-step">
+                <div class="setup-num">3</div>
+                <div>
+                  <strong>Run the script</strong>
+                  <p>Open PowerShell in the folder where you saved the file, type <code>python filename.py</code>, and press Enter. A window will open — from there, everything works like a normal application. Do not double-click the <code>.py</code> file directly; use PowerShell or Terminal.</p>
+                </div>
+              </div>
+              <div class="setup-step">
+                <div class="setup-num">4</div>
+                <div>
+                  <strong>Stuck? Ask an AI</strong>
+                  <p>If you get an error message, paste it directly into Claude or ChatGPT and ask what to do. Error messages look intimidating but are almost always simple to fix — a missing library, a wrong folder path, or a Python version issue. An AI will walk you through it in seconds.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TOOLS GRID -->
+        <div class="tools-grid" id="tools-grid">
+
+          <article class="tool-card">
+            <div class="tool-card-inner">
+              <span class="tool-tag">Production</span>
+              <h3>Bates Stamper</h3>
+              <p>Handles a full document production run from a single folder. Stamps sequential Bates numbers and optional confidentiality designations (e.g., CONFIDENTIAL, HIGHLY CONFIDENTIAL) onto every page of every PDF and image file. For native files — Word, Excel, PowerPoint, CSV — it generates a one-page "Produced as Native" placeholder PDF and renames the original file to its Bates number. When finished, it outputs a <code>production_index.csv</code> logging every document's Bates range, original filename, file type, page count, and native status. PST files are flagged with a clear warning rather than silently skipped.</p>
+              <div class="tool-deps"><span class="deps-label">Requires:</span> <code>python -m pip install pymupdf Pillow</code></div>
+              <a class="download-btn" href="tools/Advanced_Bates_Stamper.py" download>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download .py
+              </a>
+            </div>
+          </article>
+
+          <article class="tool-card">
+            <div class="tool-card-inner">
+              <span class="tool-tag">Document Review</span>
+              <h3>File Review</h3>
+              <p>A lightweight document review station that runs entirely on your computer. Point it at any folder and it opens a three-pane workspace: a file list on the left, a document viewer in the center with zoom and page-by-page navigation, and a notes panel on the right. Supports PDFs, images, Word documents, Excel spreadsheets, and PowerPoint files. Notes are timestamped and tied to each file; when you're done, export everything to a CSV or plain-text file. Useful for first-pass review, privilege logging, or any workflow where you need to read files and take organized notes without sending documents to a third-party platform.</p>
+              <div class="tool-deps"><span class="deps-label">Requires:</span> <code>python -m pip install pymupdf Pillow python-docx openpyxl python-pptx</code></div>
+              <a class="download-btn" href="tools/Advanced_File_Review_GUI.py" download>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download .py
+              </a>
+            </div>
+          </article>
+
+          <article class="tool-card">
+            <div class="tool-card-inner">
+              <span class="tool-tag">Deposition Prep</span>
+              <h3>Transcript Review</h3>
+              <p>Replaces the experience of reading a deposition transcript in a PDF viewer. The tool renders the transcript as a continuous scroll — no clicking through pages — while displaying a selected exhibit in a side-by-side panel. A sidebar tracks every page you've flagged for follow-up, and a notes section lets you record observations tied to specific testimony. Pages load lazily as you scroll, so even long transcripts open instantly. Designed for the kind of focused, sustained reading that deposition prep requires, without the friction of toggling between windows or losing your place.</p>
+              <div class="tool-deps"><span class="deps-label">Requires:</span> <code>python -m pip install pymupdf Pillow</code></div>
+              <a class="download-btn" href="tools/Depo_Review.py" download>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download .py
+              </a>
+            </div>
+          </article>
+
+          <article class="tool-card">
+            <div class="tool-card-inner">
+              <span class="tool-tag">Production</span>
+              <h3>PDF Splitter</h3>
+              <p>Opposing productions frequently arrive as large, concatenated PDFs — hundreds or thousands of pages with no clear breaks between individual documents. This tool detects likely document boundaries using a combination of text analysis, date extraction, and optional AI-assisted review, then presents the proposed splits in a visual interface where you can accept, adjust, or override each break before extraction. The result is a set of individual document files that can be named, organized, and loaded into a review platform. Eliminates the manual work of identifying where one document ends and another begins in a bulk production.</p>
+              <div class="tool-deps"><span class="deps-label">Requires:</span> <code>python -m pip install pymupdf Pillow pypdf pdfplumber anthropic</code></div>
+              <a class="download-btn" href="tools/Advanced_PDF_Splitter.py" download>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download .py
+              </a>
+            </div>
+          </article>
+
+          <article class="tool-card">
+            <div class="tool-card-inner">
+              <span class="tool-tag">Case Management</span>
+              <h3>Case Command</h3>
+              <p>A full litigation management application for lawyers running multiple active matters. Each case gets its own local database tracking five core areas: the docket (with sortable entries and ECF-style numbering), court hearings and deadlines, written discovery organized by set and request number, depositions, and parties and counsel. Import a PACER docket PDF and the tool parses it automatically, populating the docket entries without manual entry. A master view shows all cases at a glance. Supports full backup and restore so the database can be saved, moved, or shared. Built entirely on standard Python libraries — nothing touches the cloud.</p>
+              <div class="tool-deps"><span class="deps-label">Requires:</span> <code>python -m pip install pymupdf Pillow</code></div>
+              <a class="download-btn" href="tools/Case_Command_99.py" download>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download .py
+              </a>
+            </div>
+          </article>
+
+          <article class="tool-card">
+            <div class="tool-card-inner">
+              <span class="tool-tag">Document Review</span>
+              <h3>File Review Platform</h3>
+              <p>A more fully featured review environment built for structured, project-based work. Each review session is saved to a local database, so you can close and return to it without losing your place. Documents can be tagged using preset review codes — Relevant, Not Relevant, Privileged, Hot Doc, Confidential, Key Evidence — or custom tags with color coding. The interface is a multi-pane layout with a document list, full-document viewer with zoom, and a notes and tagging panel. Supports PDFs and Word documents. Unlike the simpler File Review tool, this one is designed for matters where you need to track coding decisions across a large set of documents over time.</p>
+              <div class="tool-deps"><span class="deps-label">Requires:</span> <code>python -m pip install PyQt6 pymupdf python-docx Pillow</code></div>
+              <div class="tool-deps" style="margin-top:-0.5rem;"><span class="deps-label">Note:</span> This tool uses PyQt6 rather than the standard tkinter library used by the other tools. The install command above is all that's needed, but the download is larger.</div>
+              <a class="download-btn" href="tools/file_review_platform.py" download>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download .py
+              </a>
+            </div>
+          </article>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════ BLOG ═══════════ -->
+    <section class="tab-panel" data-panel="blog">
+      <div class="container">
+        <div class="blog-header">
+          <h2 style="text-align:center;">Recent Opinions</h2>
+          <div class="blog-disclaimer">
+            <p><strong>Automated content notice:</strong> Posts on this page are generated automatically by an AI agent without human review. Content may be inaccurate, incomplete, or incorrect. This blog is an experiment in automated content distribution and should not be relied upon for legal research or any other purpose.</p>
+          </div>
+
+        </div>
+
+        <!-- LIST VIEW -->
+        <div class="blog-list-view" id="blog-list-view">
+          <div class="blog-list" id="blog-list">
+                        <article class="blog-card" data-post="0">
+              <div class="blog-card-inner">
+                <div>
+                  <div class="blog-card-meta">
+                    <span class="blog-date">April 24, 2026</span>
+                    <span class="blog-badge">5th Cir.</span>
+                  </div>
+                  <h3>Fifth Circuit En Banc: Advocacy Organizations Lack Standing to Challenge Texas's S.B. 4 Immigration Law</h3>
+                  <p>Sitting en banc, the Fifth Circuit vacated a preliminary injunction blocking Texas Senate Bill 4—which criminalizes unlawful border entry and reentry under state law—after holding that the nonprofit and county plaintiffs lacked Article III standing. The decision turns on the Supreme Court's recent confirmation that organizations cannot manufacture standing by voluntarily incurring costs in response to a law they oppose.</p>
+                </div>
+                <div class="blog-arrow">&#8594;</div>
+              </div>
+            </article>
+            <!-- NEXT_CARD_HERE -->
+          </div>
+        </div>
+
+        <!-- POST DETAIL VIEW (populated by JS) -->
+        <div class="blog-post-view" id="blog-post-view">
+          <button class="post-back" id="post-back">← Back to all posts</button>
+          <div class="post-header" id="post-header"></div>
+          <article class="post-body">
+            <div class="post-body-inner" id="post-body-inner"></div>
+          </article>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ═══════════ THOUGHTS ═══════════ -->
+    <section class="tab-panel" data-panel="thoughts">
+      <section class="section">
+        <div class="container">
+          <article class="panel about-box">
+            <div class="panel-inner">
+              <h3 class="essay-title">Where We Go From Here:</h3>
+              <p>Artificial intelligence is unlikely to transform litigation in one dramatic moment. More likely, it will reshape practice through a series of smaller changes that compound over time. The changes will not eliminate judgment, strategy, or advocacy. They will reduce friction. They will make it easier to organize facts, test arguments, summarize records, draft from outlines, compare authorities, and revisit work product with greater speed and consistency.</p>
+              <p>That matters because litigation is still, in large part, a profession built on time, attention, and disciplined repetition. Much of the work depends on careful reading, careful writing, and careful synthesis under pressure. AI is well suited to support that environment, not because it can replace lawyers, but because it can compress the distance between a question and a usable first draft. For litigators, that means the real opportunity is not abstraction. It is leverage.</p>
+              <p>The firms and lawyers who benefit most will not be the ones who talk about AI in the broadest terms. They will be the ones who identify specific bottlenecks in practice and apply the technology with realism. That may mean using AI to structure an investigation chronology, to stress-test a motion before filing, to refine a deposition outline, or to turn an unwieldy body of material into something more searchable and more useful. In that sense, adoption will be practical before it is philosophical.</p>
+              <p>There will also be limits, and those limits are important. Litigation is adversarial. Facts are messy. Records are incomplete. Credibility matters. So do privilege, confidentiality, accuracy, and accountability. Any serious use of AI in litigation has to recognize that the technology can accelerate both insight and error. The answer is not avoidance. It is disciplined use, with habits and systems that keep human judgment at the center.</p>
+              <p>The long-term effect of AI on litigation will be to raise expectations. Clients will expect faster analysis, cleaner work product, and more efficient execution. Lawyers will increasingly be judged not only by the quality of their reasoning, but also by whether they know how to use modern tools to deliver that reasoning well. The most effective litigators will still be excellent writers, strategists, and advocates. They will also know when technology can remove waste from the system and when it cannot.</p>
+              <p>AI will push us toward a practice that is still deeply human, but less burdened by avoidable inefficiency. The point is not to chase novelty for its own sake. The point is to use AI in ways that make litigation practice sharper, faster, and more sustainable without losing the discipline that good lawyering requires.</p>
+              <p>In some way, where we're going is where we've been. It was different a couple generations back: documents (real physical things) and human testimony mattered the most. But litigation became huge, slow, and expensive in part because email, text messages, word processing, and sprawling digital records helped create an all-consuming e-discovery process and deeply leveraged firms built around it. AI has the potential to push in the other direction. As factual analysis becomes faster and cheaper, the cost per dispute will fall, case identification will become more efficient, and more matters will be litigated to arbitration or trial, instead of being priced out of the system. That is the paradox of this moment: the most advanced tools may help return litigation to something more direct, more active, and more economically workable. In that sense, we are going back to the future.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+    </section>
+
+  </main>
+
+  <footer class="footer">
+    <div class="container">
+      <span>© 2026 M Legal Technology</span>
+    </div>
+  </footer>
+
+  <script>
+    // ── TAB NAVIGATION ──
+    const tabButtons = document.querySelectorAll('.tab-link');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+
+    tabButtons.forEach((button) => {
+      button.addEventListener('click', () => {
+        const target = button.dataset.tab;
+        tabButtons.forEach((item) => {
+          const isActive = item === button;
+          item.classList.toggle('active', isActive);
+          item.setAttribute('aria-selected', String(isActive));
+        });
+        tabPanels.forEach((panel) => {
+          panel.classList.toggle('active', panel.dataset.panel === target);
+        });
+        // Reset blog to list view when switching to blog tab
+        if (target === 'blog') showBlogList();
+      });
+    });
+
+    // ── BLOG POST DATA ──
+    // The automation script will prepend new entries to this array.
+    // Each entry: { date, court, title, summary, body }
+    const BLOG_POSTS = [
+            {
+        date: "April 24, 2026",
+        court: "5th Cir.",
+        title: "Fifth Circuit En Banc: Advocacy Organizations Lack Standing to Challenge Texas's S.B. 4 Immigration Law",
+        summary: "Sitting en banc, the Fifth Circuit vacated a preliminary injunction blocking Texas Senate Bill 4—which criminalizes unlawful border entry and reentry under state law—after holding that the nonprofit and county plaintiffs lacked Article III standing. The decision turns on the Supreme Court's recent confirmation that organizations cannot manufacture standing by voluntarily incurring costs in response to a law they oppose.",
+        body: `<h3>Background</h3><p>Texas enacted Senate Bill 4 in 2023 to create state-law analogs to federal crimes prohibiting unlawful entry and reentry, along with a procedure allowing state judges to order removal to a foreign nation. Before the law took effect, two nonprofit immigration legal-services organizations—Las Americas Immigrant Advocacy Center and American Gateways—along with El Paso County filed a pre-enforcement facial challenge in the Western District of Texas, arguing S.B. 4 is preempted by the Immigration and Nationality Act and seeking a nationwide injunction against any enforcement. The district court issued a preliminary injunction finding S.B. 4 likely preempted, and a divided Fifth Circuit panel affirmed; the en banc court then took up the appeal.</p><h3>The Court's Holding</h3><p>An en banc majority of eleven judges, in an opinion by Judge Jerry E. Smith, vacated the preliminary injunction solely on standing grounds without reaching the preemption merits. The court held that the nonprofit plaintiffs' claimed injuries—mission frustration and resource diversion caused by voluntarily redirecting staff and services in response to S.B. 4—do not constitute a cognizable injury in fact under Article III, relying on the Supreme Court's 2026 decision in <em>Bost v. Illinois State Board of Elections</em> and its earlier holding in <em>FDA v. Alliance for Hippocratic Medicine</em> for the principle that plaintiffs cannot manufacture standing by voluntarily incurring costs. El Paso County's asserted harms—diluted community trust and anticipated expenditures on jail space and personnel—fared no better, as those injuries were similarly speculative and self-initiated in anticipation of enforcement that had not yet occurred.</p><h3>Why It Matters</h3><p>This decision significantly tightens the standing doctrine for organizational plaintiffs in the Fifth Circuit, making clear that the resource-diversion and mission-frustration theories that advocacy groups have routinely invoked to access federal court are now, post-<em>Alliance for Hippocratic Medicine</em> and <em>Bost</em>, categorically insufficient when the costs are voluntarily assumed in response to challenged government action. Litigators representing nonprofit clients who seek to challenge state or federal statutes must now identify a concrete, non-self-inflicted injury—ideally traceable to direct enforcement against the organization or its constituents—before filing in the Fifth Circuit. The ruling also signals that pre-enforcement facial challenges brought by third-party advocacy organizations face a steeper standing threshold, which will reshape how immigration, civil rights, and public-interest practitioners evaluate plaintiff selection and case strategy at the outset.</p><p class="case-link">Read the full opinion: <a href="https://www.courtlistener.com/opinion/10847941/united-states-v-state-of-texas/" target="_blank" rel="noopener">United States v. State of Texas</a></p>`
+      },
+      // NEXT_POST_HERE
+      {
+        date: "April 24, 2025",
+        court: "S.D.N.Y.",
+        title: "Court Dismisses Section 10(b) Claims Against Biotech Firm, Finds Forward-Looking Statements Protected by Safe Harbor",
+        summary: "The Southern District of New York granted defendants' motion to dismiss in a putative class action alleging securities fraud arising from statements about a Phase III clinical trial. The court held that the challenged statements were forward-looking and accompanied by meaningful cautionary language.",
+        body: `<p>The Southern District of New York granted defendants' motion to dismiss in a putative securities fraud class action, holding that the challenged statements concerning a Phase III oncology trial were forward-looking and protected by the PSLRA's safe harbor provision.</p>
+
+<h3>Background</h3>
+<p>Plaintiffs alleged that the company and its executives made materially false statements about the likelihood of success of a late-stage clinical trial for a cancer treatment, causing the stock price to rise artificially before collapsing when the trial failed to meet its primary endpoint.</p>
+
+<h3>The Court's Holding</h3>
+<p>Judge [Name] held that the statements at issue — projections about trial design, enrollment timelines, and expected efficacy — were quintessentially forward-looking. The court found that the company's SEC filings and earnings call transcripts contained detailed, specific cautionary language identifying the precise risks that ultimately materialized, satisfying the safe harbor's requirements.</p>
+
+<p>The court rejected plaintiffs' argument that defendants had actual knowledge of falsity, finding that internal communications cited in the complaint did not plausibly support the inference that executives believed the trial would fail at the time they made the challenged statements.</p>
+
+<h3>Why It Matters</h3>
+<p>This decision reinforces the importance of carefully drafted risk disclosures in the biotech and pharmaceutical context. Courts in this circuit have consistently held that generic cautionary language is insufficient — but that specific, tailored warnings keyed to the particular risks of a clinical program can insulate forward-looking statements even after disappointing results.</p>`
+      }
+    ];
+
+    // ── BLOG: LIST → POST ──
+    function showBlogList() {
+      document.getElementById('blog-list-view').classList.remove('hidden');
+      document.getElementById('blog-post-view').classList.remove('active');
+    }
+
+    function showBlogPost(index) {
+      const post = BLOG_POSTS[index];
+      if (!post) return;
+
+      const header = document.getElementById('post-header');
+      header.innerHTML = '<div class="blog-card-meta" style="margin-bottom:0.5rem"><span class="blog-date">' + post.date + '</span><span class="blog-badge">' + post.court + '</span></div><h2>' + post.title + '</h2>';
+
+      document.getElementById('post-body-inner').innerHTML = post.body;
+      document.getElementById('blog-list-view').classList.add('hidden');
+      document.getElementById('blog-post-view').classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.getElementById('post-back').addEventListener('click', showBlogList);
+
+    // Wire up blog cards
+    document.querySelectorAll('.blog-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const index = parseInt(card.dataset.post, 10);
+        showBlogPost(index);
+      });
+    });
+  </script>
+</body>
+</html>
