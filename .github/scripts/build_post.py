@@ -890,12 +890,17 @@ def inject_post_into_html(html: str, post: dict) -> str:
         )
         html = html.replace("// NEXT_POST_HERE\n", new_js, 1)
 
-    # Step 1: bump all existing card indices so the new post becomes index 0
+    # Step 1: prepend new JS entry — new post is now BLOG_POSTS[0]
+    # (already done above in the new_js block)
+
+    # Step 2: bump all existing card data-post indices +1
+    # This must happen BEFORE inserting the new card so the new card
+    # gets data-post="0" and existing cards shift up correctly.
     def bump(m):
         return f'data-post="{int(m.group(1)) + 1}"'
     html = re.sub(r'data-post="(\d+)"', bump, html)
 
-    # Step 2: build the new card (always data-post="0" — it's the newest)
+    # Step 3: build the new card with data-post="0" — matches BLOG_POSTS[0]
     new_card = (
         f'            <article class="blog-card" data-post="0">\n'
         f'              <div class="blog-card-inner">\n'
@@ -979,6 +984,17 @@ def main():
 
     # Stage 5: inject into HTML
     updated_html = inject_post_into_html(html, post)
+
+    # Sanity check: verify card data-post values match array order
+    import re as _re
+    array_titles = _re.findall(r'title:\s*"([^"]+)"', updated_html)
+    card_pairs   = _re.findall(r'data-post="(\d+)".*?<h3>(.*?)</h3>', updated_html, _re.DOTALL)
+    log("Post/card alignment check:")
+    for idx, title in sorted(card_pairs, key=lambda x: int(x[0])):
+        array_title = array_titles[int(idx)] if int(idx) < len(array_titles) else "OUT OF RANGE"
+        match = "OK" if title.strip()[:40] in array_title else "MISMATCH"
+        log(f"  card data-post={idx} -> array[{idx}]: {match}")
+
     with open(HTML_PATH, "w", encoding="utf-8") as f:
         f.write(updated_html)
 
