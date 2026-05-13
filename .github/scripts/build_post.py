@@ -855,7 +855,26 @@ def clean_text(s: str) -> str:
     return s.strip()
 
 
-def inject_post_into_html(html: str, post: dict) -> str:
+def to_iso_date(date_str: str) -> str:
+    """Convert any parseable date string to ISO format (YYYY-MM-DD).
+    Falls back to today's date if parsing fails — the front-end will still
+    sort the entry, just at today's position."""
+    d = parse_date(date_str)
+    if d is None:
+        d = datetime.date.today()
+    return d.isoformat()
+
+
+def inject_post_into_html(html: str, post: dict, candidate: dict) -> str:
+    """Insert a new entry into the BLOG_POSTS JS array.
+
+    The front-end now renders cards dynamically from BLOG_POSTS and sorts
+    them by iso_date descending, so:
+      - We only touch the JS array, never the HTML card markup.
+      - Insertion position within the array does not affect display order.
+      - Every entry must include an iso_date (YYYY-MM-DD) for reliable sorting,
+        especially when a new case's date falls between existing posts.
+    """
     # Sanitize all text fields — remove any literal newlines Claude may have included
     body_clean = clean_text(post["body_html"])
     # Restore block-level tags so they stay on their own lines for readability
@@ -870,9 +889,15 @@ def inject_post_into_html(html: str, post: dict) -> str:
     title_safe   = clean_text(post["title"]).replace('"', "'")
     summary_safe = clean_text(post["summary"]).replace('"', "'")
 
+    # Compute iso_date from the raw candidate date if possible (most accurate);
+    # otherwise from the display date Claude wrote.
+    raw_date = candidate.get("date") or post.get("date_display", "")
+    iso_date = to_iso_date(raw_date)
+
     new_js = (
         "      {\n"
         f'        date: "{post["date_display"]}",\n'
+        f'        iso_date: "{iso_date}",\n'
         f'        court: "{post["court_display"]}",\n'
         f'        title: "{title_safe}",\n'
         f'        summary: "{summary_safe}",\n'
@@ -881,55 +906,17 @@ def inject_post_into_html(html: str, post: dict) -> str:
         "      // NEXT_POST_HERE\n"
     )
 
+    # Insert at the NEXT_POST_HERE marker, or just after the array opener if
+    # the marker is missing (first-run / fresh install).
     if "// NEXT_POST_HERE" in html:
         html = html.replace("// NEXT_POST_HERE\n", new_js, 1)
     else:
         html = html.replace(
             "    const BLOG_POSTS = [\n",
-            "    const BLOG_POSTS = [\n      // NEXT_POST_HERE\n", 1
+            "    const BLOG_POSTS = [\n" + new_js, 1
         )
-        html = html.replace("// NEXT_POST_HERE\n", new_js, 1)
 
-    # Step 1: prepend new JS entry — new post is now BLOG_POSTS[0]
-    # (already done above in the new_js block)
-
-    # Step 2: bump all existing card data-post indices +1
-    # This must happen BEFORE inserting the new card so the new card
-    # gets data-post="0" and existing cards shift up correctly.
-    def bump(m):
-        return f'data-post="{int(m.group(1)) + 1}"'
-    html = re.sub(r'data-post="(\d+)"', bump, html)
-
-    # Step 3: build the new card with data-post="0" — matches BLOG_POSTS[0]
-    new_card = (
-        f'            <article class="blog-card" data-post="0">\n'
-        f'              <div class="blog-card-inner">\n'
-        f'                <div>\n'
-        f'                  <div class="blog-card-meta">\n'
-        f'                    <span class="blog-date">{post["date_display"]}</span>\n'
-        f'                    <span class="blog-badge">{post["court_display"]}</span>\n'
-        f'                  </div>\n'
-        f'                  <h3>{post["title"]}</h3>\n'
-        f'                  <p>{post["summary"]}</p>\n'
-        f'                </div>\n'
-        f'                <div class="blog-arrow">&#8594;</div>\n'
-        f'              </div>\n'
-        f'            </article>\n'
-    )
-
-    # Step 3: insert the new card at the TOP of the blog list.
-    # We always anchor to the opening div tag so position is guaranteed,
-    # regardless of where NEXT_CARD_HERE ended up in a prior run.
-    BLOG_LIST_OPEN = '<div class="blog-list" id="blog-list">'
-    if BLOG_LIST_OPEN in html:
-        html = html.replace(
-            BLOG_LIST_OPEN,
-            BLOG_LIST_OPEN + '\n' + new_card,
-            1
-        )
-    else:
-        log("Warning: could not find blog-list div to inject card")
-
+    # Clean up any leftover "coming soon" placeholder.
     html = re.sub(
         r'\s*<div class="blog-coming-soon">.*?</div>\s*',
         "\n", html, flags=re.DOTALL
@@ -982,18 +969,19 @@ def main():
         log("Post generation failed. Exiting.")
         return
 
-    # Stage 5: inject into HTML
-    updated_html = inject_post_into_html(html, post)
+    # Stage 5: inject into HTML (JS array only — cards render dynamically)
+    updated_html = inject_post_into_html(html, post, selected)
 
-    # Sanity check: verify card data-post values match array order
+    # Sanity check: confirm the new entry made it into the array with an iso_date.
     import re as _re
-    array_titles = _re.findall(r'title:\s*"([^"]+)"', updated_html)
-    card_pairs   = _re.findall(r'data-post="(\d+)".*?<h3>(.*?)</h3>', updated_html, _re.DOTALL)
-    log("Post/card alignment check:")
-    for idx, title in sorted(card_pairs, key=lambda x: int(x[0])):
-        array_title = array_titles[int(idx)] if int(idx) < len(array_titles) else "OUT OF RANGE"
-        match = "OK" if title.strip()[:40] in array_title else "MISMATCH"
-        log(f"  card data-post={idx} -> array[{idx}]: {match}")
+    entries = _re.findall(
+        r'date:\s*"([^"]+)",\s*iso_date:\s*"(\d{4}-\d{2}-\d{2})"',
+        updated_html,
+    )
+    log(f"BLOG_POSTS now has {len(entries)} entries with iso_date")
+    if entries:
+        latest = max(entries, key=lambda e: e[1])
+        log(f"Newest iso_date in array: {latest[1]} (display: {latest[0]})")
 
     with open(HTML_PATH, "w", encoding="utf-8") as f:
         f.write(updated_html)
