@@ -1,37 +1,37 @@
 name: Daily Legal Opinion Post
-
+ 
 on:
   schedule:
     - cron: '0 10 * * 1-5'
   workflow_dispatch:
-
+ 
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-
+ 
     permissions:
       contents: write
-
+ 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
-
+        uses: actions/checkout@v5
+ 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
-
+ 
       - name: Install dependencies
         run: pip install anthropic requests pymupdf
-
+ 
       - name: Run post builder
         timeout-minutes: 3
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           COURTLISTENER_API_KEY: ${{ secrets.COURTLISTENER_API_KEY }}
         run: python .github/scripts/build_post.py
-
+ 
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
